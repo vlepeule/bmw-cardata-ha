@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import Dict, Tuple
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import EntityCategory
 
 from .const import DOMAIN
 from .coordinator import CardataCoordinator
@@ -52,6 +54,67 @@ class CardataSensor(CardataEntity, SensorEntity):
         self._attr_native_unit_of_measurement = state.unit
 
         self.schedule_update_ha_state()
+
+
+class CardataDiagnosticsSensor(SensorEntity):
+    _attr_should_poll = False
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: CardataCoordinator,
+        entry_id: str,
+        sensor_type: str,
+    ) -> None:
+        self._coordinator = coordinator
+        self._entry_id = entry_id
+        self._sensor_type = sensor_type
+        self._unsub = None
+        if sensor_type == "last_message":
+            self._attr_name = "Last Message Received"
+            self._attr_unique_id = f"{entry_id}_last_message"
+            self._attr_device_class = SensorDeviceClass.TIMESTAMP
+        elif sensor_type == "connection_status":
+            self._attr_name = "Stream Connection Status"
+            self._attr_unique_id = f"{entry_id}_connection_status"
+        else:
+            self._attr_name = sensor_type
+            self._attr_unique_id = f"{entry_id}_{sensor_type}"
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry_id)},
+            manufacturer="BMW",
+            name="BimmerData Streamline",
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        if self._sensor_type == "connection_status" and self._coordinator.last_disconnect_reason:
+            return {"last_disconnect_reason": self._coordinator.last_disconnect_reason}
+        return {}
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._unsub = async_dispatcher_connect(
+            self.hass,
+            self._coordinator.signal_diagnostics,
+            self._handle_update,
+        )
+        self._handle_update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._unsub:
+            self._unsub()
+            self._unsub = None
+
+    def _handle_update(self) -> None:
+        if self._sensor_type == "last_message":
+            self._attr_native_value = self._coordinator.last_message_at
+        elif self._sensor_type == "connection_status":
+            self._attr_native_value = self._coordinator.connection_status
+        self.async_write_ha_state()
 
 
 async def async_setup_entry(
@@ -98,3 +161,9 @@ async def async_setup_entry(
     entry.async_on_unload(
         async_dispatcher_connect(hass, coordinator.signal_new_sensor, async_handle_new)
     )
+
+    diagnostic_entities = [
+        CardataDiagnosticsSensor(coordinator, entry.entry_id, "connection_status"),
+        CardataDiagnosticsSensor(coordinator, entry.entry_id, "last_message"),
+    ]
+    async_add_entities(diagnostic_entities)

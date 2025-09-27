@@ -45,6 +45,9 @@ class CardataStreamManager:
         self._reauth_notified = False
         self._unauthorized_retry_in_progress = False
         self._awaiting_new_credentials = False
+        self._status_callback: Optional[
+            Callable[[str, Optional[str]], Awaitable[None]]
+        ] = None
         self._reconnect_backoff = 5
         self._max_backoff = 300
 
@@ -60,6 +63,11 @@ class CardataStreamManager:
 
     def set_message_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
         self._message_callback = callback
+
+    def set_status_callback(
+        self, callback: Callable[[str, Optional[str]], Awaitable[None]]
+    ) -> None:
+        self._status_callback = callback
 
     def _start_client(self) -> None:
         client_id = self._gcid
@@ -117,12 +125,22 @@ class CardataStreamManager:
                 self._reauth_notified = False
                 self._awaiting_new_credentials = False
                 asyncio.run_coroutine_threadsafe(self._notify_recovered(), self.hass.loop)
+            if self._status_callback:
+                asyncio.run_coroutine_threadsafe(
+                    self._status_callback("connected", None),
+                    self.hass.loop,
+                )
         elif rc in (4, 5):  # bad credentials / not authorized
             _LOGGER.error("BMW MQTT connection failed: rc=%s", rc)
             asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
             client.loop_stop()
             self._client = None
             return
+        elif self._status_callback:
+            asyncio.run_coroutine_threadsafe(
+                self._status_callback("connection_failed", str(rc)),
+                self.hass.loop,
+            )
 
     def _handle_subscribe(self, client: mqtt.Client, userdata, mid, granted_qos) -> None:
         if DEBUG_LOG:
@@ -155,8 +173,18 @@ class CardataStreamManager:
         if rc in (4, 5):
             asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
             self._reconnect_backoff = min(self._reconnect_backoff * 2, self._max_backoff)
+            if self._status_callback:
+                asyncio.run_coroutine_threadsafe(
+                    self._status_callback("unauthorized", reason),
+                    self.hass.loop,
+                )
         else:
             asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
+            if self._status_callback:
+                asyncio.run_coroutine_threadsafe(
+                    self._status_callback("disconnected", reason),
+                    self.hass.loop,
+                )
 
     async def _async_reconnect(self) -> None:
         await self.async_stop()
@@ -180,6 +208,8 @@ class CardataStreamManager:
                 await self._notify_error("unauthorized")
             else:
                 await self.async_stop()
+            if self._status_callback:
+                await self._status_callback("unauthorized", "MQTT rc=5")
         finally:
             self._unauthorized_retry_in_progress = False
 

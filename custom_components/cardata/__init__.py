@@ -74,6 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         error_callback=handle_stream_error,
     )
     manager.set_message_callback(coordinator.async_handle_message)
+    manager.set_status_callback(coordinator.async_handle_connection_event)
 
     try:
         await manager.async_start()

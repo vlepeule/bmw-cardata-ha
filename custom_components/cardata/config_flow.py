@@ -16,6 +16,7 @@ import voluptuous as vol
 import logging
 
 from homeassistant import config_entries
+from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
@@ -152,6 +153,11 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if runtime:
                 runtime.reauth_in_progress = False
                 runtime.reauth_flow_id = None
+                new_token = entry_data.get("id_token")
+                if new_token:
+                    self.hass.async_create_task(runtime.stream.async_update_token(new_token))
+            notification_id = f"{DOMAIN}_reauth_{self._reauth_entry.entry_id}"
+            persistent_notification.async_dismiss(self.hass, notification_id)
             return self.async_abort(reason="reauth_successful")
 
         friendly_title = f"BimmerData Streamline ({self._client_id[:8]})"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
 
 from homeassistant.core import HomeAssistant
@@ -27,6 +28,9 @@ class CardataCoordinator:
     entry_id: str
     data: Dict[str, Dict[str, DescriptorState]] = field(default_factory=dict)
     names: Dict[str, str] = field(default_factory=dict)
+    last_message_at: Optional[str] = None
+    connection_status: str = "connecting"
+    last_disconnect_reason: Optional[str] = None
 
     @property
     def signal_new_sensor(self) -> str:
@@ -40,6 +44,10 @@ class CardataCoordinator:
     def signal_update(self) -> str:
         return f"{DOMAIN}_{self.entry_id}_update"
 
+    @property
+    def signal_diagnostics(self) -> str:
+        return f"{DOMAIN}_{self.entry_id}_diagnostics"
+
     async def async_handle_message(self, payload: Dict[str, Any]) -> None:
         vin = payload.get("vin")
         data = payload.get("data") or {}
@@ -49,6 +57,8 @@ class CardataCoordinator:
         vehicle_state = self.data.setdefault(vin, {})
         new_binary: list[str] = []
         new_sensor: list[str] = []
+
+        self.last_message_at = datetime.now(timezone.utc).isoformat()
 
         if DEBUG_LOG:
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
@@ -88,6 +98,8 @@ class CardataCoordinator:
         if vehicle_name:
             async_dispatcher_send(self.hass, f"{DOMAIN}_{self.entry_id}_name", vin, vehicle_name)
 
+        async_dispatcher_send(self.hass, self.signal_diagnostics)
+
     def get_state(self, vin: str, descriptor: str) -> Optional[DescriptorState]:
         return self.data.get(vin, {}).get(descriptor)
 
@@ -96,3 +108,13 @@ class CardataCoordinator:
             for descriptor, descriptor_state in descriptors.items():
                 if isinstance(descriptor_state.value, bool) == binary:
                     yield vin, descriptor
+
+    async def async_handle_connection_event(
+        self, status: str, *, reason: Optional[str] = None
+    ) -> None:
+        self.connection_status = status
+        if reason:
+            self.last_disconnect_reason = reason
+        elif status == "connected":
+            self.last_disconnect_reason = None
+        async_dispatcher_send(self.hass, self.signal_diagnostics)
