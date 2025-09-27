@@ -5,9 +5,10 @@
     "@jjyks"
   ],
   "config_flow": true,
+  "options_flow": true,
   "documentation": "https://github.com/jjyks/bmw-cardata-homeassistant",
   "iot_class": "cloud_push",
   "requirements": [],
-  "version": "0.1.9",
+  "version": "0.1.10",
   "integration_type": "device"
 }
