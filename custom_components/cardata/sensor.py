@@ -86,7 +86,7 @@ class CardataDiagnosticsSensor(SensorEntity):
         return DeviceInfo(
             identifiers={(DOMAIN, self._entry_id)},
             manufacturer="BMW",
-            name="BimmerData Streamline",
+            name="CarData Debug Device",
         )
 
     @property
@@ -162,8 +162,23 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, coordinator.signal_new_sensor, async_handle_new)
     )
 
-    diagnostic_entities = [
-        CardataDiagnosticsSensor(coordinator, entry.entry_id, "connection_status"),
-        CardataDiagnosticsSensor(coordinator, entry.entry_id, "last_message"),
-    ]
-    async_add_entities(diagnostic_entities)
+    diagnostic_unique_ids = {
+        "connection_status": f"{entry.entry_id}_connection_status",
+        "last_message": f"{entry.entry_id}_last_message",
+    }
+
+    existing_unique_ids = {
+        reg_entry.unique_id
+        for reg_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id)
+    }
+
+    diagnostic_entities: list[CardataDiagnosticsSensor] = []
+    for sensor_type, unique_id in diagnostic_unique_ids.items():
+        if unique_id in existing_unique_ids:
+            continue
+        diagnostic_entities.append(
+            CardataDiagnosticsSensor(coordinator, entry.entry_id, sensor_type)
+        )
+
+    if diagnostic_entities:
+        async_add_entities(diagnostic_entities)
