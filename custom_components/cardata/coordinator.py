@@ -52,6 +52,10 @@ class CardataCoordinator:
         if DEBUG_LOG:
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
 
+        vehicle_name: Optional[str] = None
+
+        vehicle_name: Optional[str] = None
+
         for descriptor, descriptor_payload in data.items():
             if not isinstance(descriptor_payload, dict):
                 continue
@@ -62,6 +66,8 @@ class CardataCoordinator:
             timestamp = descriptor_payload.get("timestamp")
             is_new = descriptor not in vehicle_state
             vehicle_state[descriptor] = DescriptorState(value=value, unit=unit, timestamp=timestamp)
+            if descriptor == "vehicle.vehicleIdentification.basicVehicleData" and isinstance(value, dict):
+                vehicle_name = value.get("modelName") or value.get("model") or vehicle_name
             if is_new:
                 if isinstance(value, bool):
                     new_binary.append(descriptor)
@@ -74,6 +80,12 @@ class CardataCoordinator:
             async_dispatcher_send(self.hass, self.signal_new_sensor, vin, descriptor)
         for descriptor in new_binary:
             async_dispatcher_send(self.hass, self.signal_new_binary, vin, descriptor)
+
+        if vehicle_name:
+            async_dispatcher_send(self.hass, f"{DOMAIN}_{self.entry_id}_name", vin, vehicle_name)
+
+        if vehicle_name:
+            async_dispatcher_send(self.hass, f"{DOMAIN}_{self.entry_id}_name", vin, vehicle_name)
 
     def get_state(self, vin: str, descriptor: str) -> Optional[DescriptorState]:
         return self.data.get(vin, {}).get(descriptor)

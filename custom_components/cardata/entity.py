@@ -46,6 +46,10 @@ class CardataEntity(Entity):
         return self._vin
 
     def _format_name(self) -> str:
-        parts = [p for p in self._descriptor.replace("_", " ").replace(".", " ").split() if p]
+        parts = [
+            p
+            for p in self._descriptor.replace("_", " ").replace(".", " ").split()
+            if p and p.lower() != "vehicle"
+        ]
         title = " ".join(p.capitalize() for p in parts)
         return title or self._vin

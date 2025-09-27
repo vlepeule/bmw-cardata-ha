@@ -142,7 +142,8 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             "received_at": time.time(),
         }
 
-        return self.async_create_entry(title=self._client_id, data=entry_data)
+        friendly_title = f"BimmerData Streamline ({self._client_id[:8]})"
+        return self.async_create_entry(title=friendly_title, data=entry_data)
 
     async def async_step_reauth(self, entry_data: Dict[str, Any]) -> FlowResult:
         self._client_id = entry_data.get("client_id")
