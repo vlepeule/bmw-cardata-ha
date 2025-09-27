@@ -43,6 +43,8 @@ class CardataRuntimeData:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
+    _LOGGER.debug("Setting up BimmerData Streamline entry %s", entry.entry_id)
+
     session = aiohttp.ClientSession()
 
     data = entry.data

@@ -17,6 +17,7 @@ class CardataEntity(Entity):
         self._vin = vin
         self._descriptor = descriptor
         self._attr_unique_id = f"{vin}_{descriptor}"
+        self._attr_name = self._format_name()
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -43,3 +44,8 @@ class CardataEntity(Entity):
     @property
     def vin(self) -> str:
         return self._vin
+
+    def _format_name(self) -> str:
+        parts = [p for p in self._descriptor.replace("_", " ").replace(".", " ").split() if p]
+        title = " ".join(p.capitalize() for p in parts)
+        return title or self._vin

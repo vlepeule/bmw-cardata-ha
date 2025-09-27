@@ -6,6 +6,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Optional
 
 from homeassistant.core import HomeAssistant
+
+from .const import DEBUG_LOG
+
+_LOGGER = logging.getLogger(__name__)
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import DOMAIN
@@ -45,6 +49,9 @@ class CardataCoordinator:
         vehicle_state = self.data.setdefault(vin, {})
         new_binary: list[str] = []
         new_sensor: list[str] = []
+
+        if DEBUG_LOG:
+            _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
 
         for descriptor, descriptor_payload in data.items():
             if not isinstance(descriptor_payload, dict):

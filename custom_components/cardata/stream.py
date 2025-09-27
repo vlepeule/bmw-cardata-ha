@@ -12,6 +12,8 @@ import paho.mqtt.client as mqtt
 
 from homeassistant.core import HomeAssistant
 
+from .const import DEBUG_LOG, DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -69,6 +71,13 @@ class CardataStreamManager:
             protocol=mqtt.MQTTv311,
             transport="tcp",
         )
+        if DEBUG_LOG:
+            _LOGGER.debug(
+                "Initializing MQTT client: client_id=%s host=%s port=%s",
+                client_id,
+                self._host,
+                self._port,
+            )
         client.username_pw_set(username=self._gcid, password=self._password)
         client.on_connect = self._handle_connect
         client.on_subscribe = self._handle_subscribe
@@ -97,16 +106,19 @@ class CardataStreamManager:
             topic = userdata.get("topic")
             if topic:
                 result = client.subscribe(topic)
-                _LOGGER.debug("Subscribed to %s result=%s", topic, result)
+                if DEBUG_LOG:
+                    _LOGGER.debug("Subscribed to %s result=%s", topic, result)
         else:
             _LOGGER.error("BMW MQTT connection failed: rc=%s", rc)
 
     def _handle_subscribe(self, client: mqtt.Client, userdata, mid, granted_qos) -> None:
-        _LOGGER.debug("BMW MQTT subscribed mid=%s qos=%s", mid, granted_qos)
+        if DEBUG_LOG:
+            _LOGGER.debug("BMW MQTT subscribed mid=%s qos=%s", mid, granted_qos)
 
     def _handle_message(self, client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
         payload = msg.payload.decode(errors="ignore")
-        _LOGGER.debug("BMW MQTT message on %s: %s", msg.topic, payload)
+        if DEBUG_LOG:
+            _LOGGER.debug("BMW MQTT message on %s: %s", msg.topic, payload)
         if not self._message_callback:
             return
         try:
