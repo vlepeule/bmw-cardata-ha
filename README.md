@@ -18,7 +18,7 @@ Turn your BMW CarData stream into native Home Assistant entities. This integrati
 - Sensors & binary sensors appear dynamically when descriptors send data (door states, charging info, HVAC settings, etc.).
 - Device metadata (BMW VIN + model name) populated from `vehicle.vehicleIdentification.basicVehicleData`.
 
-## BMW Portal Setup
+## BMW Portal Setup (DON'T SKIP, DO THIS FIRST)
 
 The CarData web portal isn’t available everywhere (e.g., it’s disabled in Finland). You can still enable streaming by logging into https://www.bmw.de/de-de/mybmw/vehicle-overview and following these steps:
 
@@ -57,9 +57,10 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 ```
 
 7. Save the selection.
-8. Install this integration via HACS.
-9. During the Home Assistant config flow, paste the client ID, visit the provided verification URL, enter the code (if asked), and approve. **Do not click Continue/Submit in Home Assistant until the BMW page confirms the approval**; submitting early leaves the flow stuck and requires a restart.
-10. Wait for the car to send data—triggering an action via the MyBMW app (lock/unlock doors) usually produces updates immediately.
+8. Repeat for all the cars you want to support
+9. Install this integration via HACS.
+10. During the Home Assistant config flow, paste the client ID, visit the provided verification URL, enter the code (if asked), and approve. **Do not click Continue/Submit in Home Assistant until the BMW page confirms the approval**; submitting early leaves the flow stuck and requires a restart.
+11. Wait for the car to send data—triggering an action via the MyBMW app (lock/unlock doors) usually produces updates immediately.
 
 ## Installation (HACS)
 
