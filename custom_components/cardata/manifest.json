@@ -1,6 +1,6 @@
 {
   "domain": "cardata",
-  "name": "BMW CarData",
+  "name": "BimmerData Streamline",
   "codeowners": ["@jjyks"],
   "config_flow": true,
   "documentation": "https://github.com/jjyks/bmw-cardata-homeassistant",
