@@ -94,6 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     await coordinator.async_handle_connection_event("connecting")
+    await coordinator.async_start_watchdog()
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
@@ -104,6 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data: CardataRuntimeData = hass.data[DOMAIN].pop(entry.entry_id)
+    await data.coordinator.async_stop_watchdog()
     await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     data.refresh_task.cancel()
     with suppress(asyncio.CancelledError):

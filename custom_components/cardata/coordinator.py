@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
@@ -31,7 +32,7 @@ class CardataCoordinator:
     last_message_at: Optional[datetime] = None
     connection_status: str = "connecting"
     last_disconnect_reason: Optional[str] = None
-    _next_log_due: Optional[datetime] = None
+    watchdog_task: Optional[asyncio.Task] = field(default=None, init=False, repr=False)
 
     @property
     def signal_new_sensor(self) -> str:
@@ -60,7 +61,6 @@ class CardataCoordinator:
         new_sensor: list[str] = []
 
         self.last_message_at = datetime.now(timezone.utc)
-        self._next_log_due = datetime.now(timezone.utc)
 
         if DEBUG_LOG:
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
@@ -119,14 +119,37 @@ class CardataCoordinator:
             self.last_disconnect_reason = reason
         elif status == "connected":
             self.last_disconnect_reason = None
-        now = datetime.now(timezone.utc)
-        if self._next_log_due is None or now >= self._next_log_due:
-            if DEBUG_LOG:
-                _LOGGER.debug(
-                    "Stream diagnostics: status=%s last_reason=%s last_message=%s",
-                    self.connection_status,
-                    self.last_disconnect_reason,
-                    self.last_message_at,
-                )
-            self._next_log_due = now + timedelta(seconds=DIAGNOSTIC_LOG_INTERVAL)
+        self._log_diagnostics()
+
+    async def async_start_watchdog(self) -> None:
+        if self.watchdog_task:
+            return
+        self.watchdog_task = self.hass.loop.create_task(self._watchdog_loop())
+
+    async def async_stop_watchdog(self) -> None:
+        if not self.watchdog_task:
+            return
+        self.watchdog_task.cancel()
+        try:
+            await self.watchdog_task
+        except asyncio.CancelledError:
+            pass
+        self.watchdog_task = None
+
+    async def _watchdog_loop(self) -> None:
+        try:
+            while True:
+                await asyncio.sleep(DIAGNOSTIC_LOG_INTERVAL)
+                self._log_diagnostics()
+        except asyncio.CancelledError:
+            return
+
+    def _log_diagnostics(self) -> None:
+        if DEBUG_LOG:
+            _LOGGER.debug(
+                "Stream heartbeat: status=%s last_reason=%s last_message=%s",
+                self.connection_status,
+                self.last_disconnect_reason,
+                self.last_message_at,
+            )
         async_dispatcher_send(self.hass, self.signal_diagnostics)

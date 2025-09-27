@@ -75,11 +75,8 @@ class CardataDiagnosticsSensor(SensorEntity):
         if sensor_type == "last_message":
             self._attr_name = "Last Message Received"
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
-            if coordinator.last_message_at is not None:
-                self._attr_native_value = coordinator.last_message_at
         elif sensor_type == "connection_status":
             self._attr_name = "Stream Connection Status"
-            self._attr_native_value = coordinator.connection_status
         else:
             self._attr_name = sensor_type
 
@@ -112,14 +109,15 @@ class CardataDiagnosticsSensor(SensorEntity):
             self._unsub = None
 
     def _handle_update(self) -> None:
-        if self._sensor_type == "last_message":
-            if self._coordinator.last_message_at is None:
-                self._attr_native_value = None
-            else:
-                self._attr_native_value = self._coordinator.last_message_at
-        elif self._sensor_type == "connection_status":
-            self._attr_native_value = self._coordinator.connection_status
         self.async_write_ha_state()
+
+    @property
+    def native_value(self):
+        if self._sensor_type == "last_message":
+            return self._coordinator.last_message_at
+        if self._sensor_type == "connection_status":
+            return self._coordinator.connection_status
+        return None
 
 
 async def async_setup_entry(
@@ -182,4 +180,4 @@ async def async_setup_entry(
         CardataDiagnosticsSensor(coordinator, entry.entry_id, "connection_status"),
         CardataDiagnosticsSensor(coordinator, entry.entry_id, "last_message"),
     ]
-    async_add_entities(diagnostic_entities)
+    async_add_entities(diagnostic_entities, True)
