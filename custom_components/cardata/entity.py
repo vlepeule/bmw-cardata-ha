@@ -5,19 +5,20 @@ from __future__ import annotations
 from typing import Optional
 
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN
 from .coordinator import CardataCoordinator
 
 
-class CardataEntity(Entity):
+class CardataEntity(RestoreEntity):
     def __init__(self, coordinator: CardataCoordinator, vin: str, descriptor: str) -> None:
         self._coordinator = coordinator
         self._vin = vin
         self._descriptor = descriptor
         self._attr_unique_id = f"{vin}_{descriptor}"
         self._attr_name = self._format_name()
+        self._attr_available = True
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -30,8 +31,7 @@ class CardataEntity(Entity):
 
     @property
     def available(self) -> bool:
-        """Return True when the coordinator has a state for this descriptor."""
-        return self._coordinator.get_state(self._vin, self._descriptor) is not None
+        return True
 
     @property
     def extra_state_attributes(self) -> dict:

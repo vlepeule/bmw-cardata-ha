@@ -23,6 +23,13 @@ class CardataSensor(CardataEntity, SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        if getattr(self, "_attr_native_value", None) is None:
+            last_state = await self.async_get_last_state()
+            if last_state and last_state.state not in ("unknown", "unavailable"):
+                self._attr_native_value = last_state.state
+                unit = last_state.attributes.get("unit_of_measurement")
+                if unit is not None:
+                    self._attr_native_unit_of_measurement = unit
         self._unsubscribe = async_dispatcher_connect(
             self.hass,
             self._coordinator.signal_update,
@@ -39,12 +46,10 @@ class CardataSensor(CardataEntity, SensorEntity):
         if vin != self.vin or descriptor != self.descriptor:
             return
         state = self._coordinator.get_state(vin, descriptor)
-        if state:
-            self._attr_native_value = state.value
-            self._attr_native_unit_of_measurement = state.unit
-        else:
-            self._attr_native_value = None
-            self._attr_native_unit_of_measurement = None
+        if not state:
+            return
+        self._attr_native_value = state.value
+        self._attr_native_unit_of_measurement = state.unit
 
         self.schedule_update_ha_state()
 

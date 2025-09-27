@@ -23,6 +23,10 @@ class CardataBinarySensor(CardataEntity, BinarySensorEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        if getattr(self, "_attr_is_on", None) is None:
+            last_state = await self.async_get_last_state()
+            if last_state and last_state.state not in ("unknown", "unavailable"):
+                self._attr_is_on = last_state.state.lower() == "on"
         self._unsubscribe = async_dispatcher_connect(
             self.hass,
             self._coordinator.signal_update,
@@ -39,12 +43,9 @@ class CardataBinarySensor(CardataEntity, BinarySensorEntity):
         if vin != self.vin or descriptor != self.descriptor:
             return
         state = self._coordinator.get_state(vin, descriptor)
-        if state:
-            if not isinstance(state.value, bool):
-                return
-            self._attr_is_on = state.value
-        else:
-            self._attr_is_on = None
+        if not state or not isinstance(state.value, bool):
+            return
+        self._attr_is_on = state.value
 
         self.schedule_update_ha_state()
 

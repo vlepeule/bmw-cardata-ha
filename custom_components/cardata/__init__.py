@@ -202,3 +202,10 @@ async def _refresh_tokens(
 
     hass.config_entries.async_update_entry(entry, data=data)
     await manager.async_update_token(new_id_token)
+
+
+async def async_manual_refresh_tokens(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    runtime: CardataRuntimeData | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if runtime is None:
+        raise CardataAuthError("Integration runtime not ready")
+    await _refresh_tokens(entry, runtime.session, runtime.stream)

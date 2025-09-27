@@ -19,6 +19,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
+from . import async_manual_refresh_tokens
 from .const import DEFAULT_SCOPE, DOMAIN
 from .device_flow import CardataAuthError, poll_for_tokens, request_device_code
 
@@ -164,3 +165,30 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await self._request_device_code()
         return await self.async_step_authorize()
 LOGGER = logging.getLogger(__name__)
+
+
+class CardataOptionsFlowHandler(config_entries.OptionsFlow):
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self._config_entry = config_entry
+
+    async def async_step_init(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
+        if user_input is not None:
+            try:
+                await async_manual_refresh_tokens(self.hass, self._config_entry)
+            except CardataAuthError as err:
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=vol.Schema({}),
+                    errors={"base": "refresh_failed"},
+                    description_placeholders={"error": str(err)},
+                )
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({}),
+        )
+
+
+async def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+    return CardataOptionsFlowHandler(config_entry)

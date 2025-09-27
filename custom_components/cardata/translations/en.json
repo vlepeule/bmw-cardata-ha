@@ -13,5 +13,16 @@
     "error": {
       "authorization_failed": "Authorization is not complete yet (error: {error}). Please approve the device and try again."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Manual token refresh",
+        "description": "Click Submit to request fresh tokens without running the full login flow."
+      }
+    },
+    "error": {
+      "refresh_failed": "Token refresh failed: {error}"
+    }
   }
 }
