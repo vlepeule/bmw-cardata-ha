@@ -84,10 +84,6 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(
                 step_id="authorize",
                 data_schema=vol.Schema({vol.Required("confirmed", default=True): bool}),
-                description=(
-                    "Open {verification_url} and enter the user code {user_code}. "
-                    "Once you've approved the device, press Submit to continue."
-                ),
                 description_placeholders=placeholders,
             )
 
@@ -109,12 +105,7 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     step_id="authorize",
                     data_schema=vol.Schema({vol.Required("confirmed", default=True): bool}),
                     errors={"base": "authorization_failed"},
-                    description=(
-                        "Open {verification_url} and enter the user code {user_code}. "
-                        "Once you've approved the device, press Submit to continue.\n"
-                        "Error: {error}"
-                    ),
-                    description_placeholders={"error": str(err), **placeholders},
+                    description_placeholders=placeholders,
                 )
 
         self._token_data = token_data

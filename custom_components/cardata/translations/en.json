@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BimmerData Streamline",
+        "description": "Enter your BMW CarData client ID."
+      },
+      "authorize": {
+        "title": "Authorize BMW CarData",
+        "description": "Open {verification_url} and enter the user code {user_code}. Once you've approved the device, click Submit."
+      }
+    },
+    "error": {
+      "authorization_failed": "Authorization is not complete yet. Please approve the device and try again."
+    }
+  }
+}
