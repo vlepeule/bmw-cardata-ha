@@ -70,21 +70,22 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
     async def async_step_authorize(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
-        assert self._device_data is not None
-        return self.async_show_progress(
-            step_id="authorize_progress",
-            progress_action="polling",
-            description_placeholders={
-                "verification_url": self._device_data.get("verification_uri_complete")
-                or self._device_data.get("verification_uri"),
-                "user_code": self._device_data.get("user_code", ""),
-            },
-        )
-
-    async def async_step_authorize_progress(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         assert self._client_id is not None
         assert self._device_data is not None
         assert self._code_verifier is not None
+
+        placeholders = {
+            "verification_url": self._device_data.get("verification_uri_complete")
+            or self._device_data.get("verification_uri"),
+            "user_code": self._device_data.get("user_code", ""),
+        }
+
+        if user_input is None:
+            return self.async_show_form(
+                step_id="authorize",
+                data_schema=vol.Schema({vol.Required("confirmed", default=True): bool}),
+                description_placeholders=placeholders,
+            )
 
         device_code = self._device_data["device_code"]
         interval = int(self._device_data.get("interval", 5))
@@ -100,23 +101,19 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     timeout=int(self._device_data.get("expires_in", 600)),
                 )
             except CardataAuthError as err:
-                await asyncio.sleep(interval)
                 return self.async_show_form(
-                    step_id="user",
-                    data_schema=DATA_SCHEMA,
+                    step_id="authorize",
+                    data_schema=vol.Schema({vol.Required("confirmed", default=True): bool}),
                     errors={"base": "authorization_failed"},
-                    description_placeholders={"error": str(err)},
+                    description_placeholders={"error": str(err), **placeholders},
                 )
 
         self._token_data = token_data
-        return await self.async_show_progress_done(
-            next_step_id="tokens",
-            progress_action="polling",
-        )
+        return await self.async_step_tokens()
 
     async def async_step_tokens(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         assert self._client_id is not None
-        token_data = getattr(self, "_token_data")
+        token_data = self._token_data
 
         entry_data = {
             "client_id": self._client_id,
