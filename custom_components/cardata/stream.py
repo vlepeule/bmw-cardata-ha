@@ -127,7 +127,7 @@ class CardataStreamManager:
                 asyncio.run_coroutine_threadsafe(self._notify_recovered(), self.hass.loop)
             if self._status_callback:
                 asyncio.run_coroutine_threadsafe(
-                    self._status_callback("connected", None),
+                    self._status_callback("connected"),
                     self.hass.loop,
                 )
         elif rc in (4, 5):  # bad credentials / not authorized
@@ -138,7 +138,7 @@ class CardataStreamManager:
             return
         elif self._status_callback:
             asyncio.run_coroutine_threadsafe(
-                self._status_callback("connection_failed", str(rc)),
+                self._status_callback("connection_failed", reason=str(rc)),
                 self.hass.loop,
             )
 
@@ -175,14 +175,14 @@ class CardataStreamManager:
             self._reconnect_backoff = min(self._reconnect_backoff * 2, self._max_backoff)
             if self._status_callback:
                 asyncio.run_coroutine_threadsafe(
-                    self._status_callback("unauthorized", reason),
+                    self._status_callback("unauthorized", reason=reason),
                     self.hass.loop,
                 )
         else:
             asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
             if self._status_callback:
                 asyncio.run_coroutine_threadsafe(
-                    self._status_callback("disconnected", reason),
+                    self._status_callback("disconnected", reason=reason),
                     self.hass.loop,
                 )
 
@@ -209,7 +209,7 @@ class CardataStreamManager:
             else:
                 await self.async_stop()
             if self._status_callback:
-                await self._status_callback("unauthorized", "MQTT rc=5")
+                await self._status_callback("unauthorized", reason="MQTT rc=5")
         finally:
             self._unauthorized_retry_in_progress = False
 
