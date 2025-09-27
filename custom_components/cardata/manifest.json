@@ -7,6 +7,5 @@
   "iot_class": "cloud_push",
   "requirements": [],
   "version": "0.1.5",
-  "logo": "logo.png",
-  "icon": "logo.png"
+  "integration_type": "device" 
 }
