@@ -58,7 +58,7 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 
 7. Save the selection.
 8. Install this integration via HACS.
-9. During the Home Assistant config flow, paste the client ID, visit the provided verification URL, enter the code, and approve.
+9. During the Home Assistant config flow, paste the client ID, visit the provided verification URL, enter the code, and approve. **Do not click Continue/Submit in Home Assistant until the BMW page confirms the approval**; submitting early leaves the flow stuck and requires a restart.
 10. Wait for the car to send data—triggering an action via the MyBMW app (lock/unlock doors) usually produces updates immediately.
 
 ## Installation (HACS)
@@ -72,7 +72,7 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 1. Go to **Settings → Devices & Services → Add Integration** and pick **BimmerData Streamline**.
 2. Enter your CarData **client ID** (created in the BMW portal).
 3. The flow displays a `verification_url` and `user_code`. Open the link, enter the code, and approve the device.
-4. Once the BMW portal confirms the approval, return to HA and click Submit. The integration immediately brings up sensors/binary sensors as data arrives.
+4. Once the BMW portal confirms the approval, return to HA and click Submit. If you accidentally submit before finishing the BMW login, the flow will hang until the device-code exchange times out; cancel it and start over after completing the BMW login.
 5. If you remove the integration later, you can re-add it with the same client ID—the flow deletes the old entry automatically.
 
 ### Reauthorization
@@ -101,6 +101,7 @@ Set `DEBUG_LOG = True` in `custom_components/cardata/const.py` for detailed MQTT
 
 - Only one BMW stream per GCID: make sure no other clients are connected simultaneously.
 - The CarData API is read-only; sending commands remains outside this integration.
+- Premature Continue in auth flow: If you hit Continue before authorizing on BMW’s site, the device-code flow gets stuck. Cancel the flow and restart the integration (or Home Assistant) once you’ve completed the BMW login.
 
 ## License
 
