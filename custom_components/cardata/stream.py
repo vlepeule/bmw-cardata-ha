@@ -45,9 +45,12 @@ class CardataStreamManager:
         self._reauth_notified = False
         self._unauthorized_retry_in_progress = False
         self._awaiting_new_credentials = False
+        self._reconnect_backoff = 5
+        self._max_backoff = 300
 
     async def async_start(self) -> None:
         await self.hass.async_add_executor_job(self._start_client)
+        self._reconnect_backoff = 5
 
     async def async_stop(self) -> None:
         if self._client:
@@ -151,16 +154,20 @@ class CardataStreamManager:
             userdata["reconnect"] = True
         if rc in (4, 5):
             asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
+            self._reconnect_backoff = min(self._reconnect_backoff * 2, self._max_backoff)
         else:
             asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
 
     async def _async_reconnect(self) -> None:
         await self.async_stop()
-        await asyncio.sleep(5)
+        await asyncio.sleep(self._reconnect_backoff)
         try:
             await self.async_start()
         except Exception as err:
             _LOGGER.error("BMW MQTT reconnect failed: %s", err)
+            self._reconnect_backoff = min(self._reconnect_backoff * 2, self._max_backoff)
+        else:
+            self._reconnect_backoff = 5
 
     async def _handle_unauthorized(self) -> None:
         if self._unauthorized_retry_in_progress:
@@ -192,6 +199,7 @@ class CardataStreamManager:
         if self._client:
             _LOGGER.debug("Updating MQTT password; reconnecting")
             await self.async_stop()
+        self._reconnect_backoff = 5
         if self._awaiting_new_credentials:
             self._awaiting_new_credentials = False
             try:
