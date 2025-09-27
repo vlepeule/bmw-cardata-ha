@@ -176,18 +176,21 @@ async def _refresh_tokens(
     if not refresh_token or not client_id:
         raise CardataAuthError("Missing credentials for refresh")
 
+    requested_scope = data.get("scope") or DEFAULT_SCOPE
+
     token_data = await refresh_tokens(
         session,
         client_id=client_id,
         refresh_token=refresh_token,
-        scope=None,
+        scope=requested_scope,
     )
 
+    previous_id_token = data.get("id_token")
     data.update(
         {
             "access_token": token_data.get("access_token"),
             "refresh_token": token_data.get("refresh_token", refresh_token),
-            "id_token": token_data.get("id_token"),
+            "id_token": token_data.get("id_token") or previous_id_token,
             "expires_in": token_data.get("expires_in"),
             "scope": token_data.get("scope", data.get("scope")),
             "token_type": token_data.get("token_type", data.get("token_type")),
@@ -196,4 +199,7 @@ async def _refresh_tokens(
     )
 
     hass.config_entries.async_update_entry(entry, data=data)
-    await manager.async_update_token(token_data.get("id_token"))
+    new_id_token = token_data.get("id_token") or previous_id_token
+    if not new_id_token:
+        _LOGGER.warning("Token refresh succeeded but no id_token provided; keeping previous token")
+    await manager.async_update_token(new_id_token)
