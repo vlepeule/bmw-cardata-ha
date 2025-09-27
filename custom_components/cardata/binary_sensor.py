@@ -46,8 +46,7 @@ class CardataBinarySensor(CardataEntity, BinarySensorEntity):
         else:
             self._attr_is_on = None
 
-        if self.hass and self.hass.loop:
-            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
+        self.schedule_update_ha_state()
 
 
 async def async_setup_entry(
