@@ -45,6 +45,7 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._device_data: Optional[Dict[str, Any]] = None
         self._code_verifier: Optional[str] = None
         self._token_data: Optional[Dict[str, Any]] = None
+        self._reauth_entry: Optional[ConfigEntry] = None
 
     async def async_step_user(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         if user_input is None:
@@ -124,6 +125,7 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         self._token_data = token_data
+        LOGGER.debug("Received token: scope=%s id_token_length=%s", token_data.get("scope"), len(token_data.get("id_token") or ""))
         return await self.async_step_tokens()
 
     async def async_step_tokens(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
@@ -142,10 +144,20 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             "received_at": time.time(),
         }
 
+        if self._reauth_entry:
+            self.hass.config_entries.async_update_entry(self._reauth_entry, data=entry_data)
+            runtime = self.hass.data.get(DOMAIN, {}).get(self._reauth_entry.entry_id)
+            if runtime:
+                runtime.reauth_in_progress = False
+            return self.async_abort(reason="reauth_successful")
+
         friendly_title = f"BimmerData Streamline ({self._client_id[:8]})"
         return self.async_create_entry(title=friendly_title, data=entry_data)
 
     async def async_step_reauth(self, entry_data: Dict[str, Any]) -> FlowResult:
+        entry_id = entry_data.get("entry_id")
+        if entry_id:
+            self._reauth_entry = self.hass.config_entries.async_get_entry(entry_id)
         self._client_id = entry_data.get("client_id")
         await self._request_device_code()
         return await self.async_step_authorize()

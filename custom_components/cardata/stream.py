@@ -81,6 +81,12 @@ class CardataStreamManager:
                 self._port,
             )
         client.username_pw_set(username=self._gcid, password=self._password)
+        if DEBUG_LOG:
+            _LOGGER.debug(
+                "MQTT credentials set for GCID %s (token length=%s)",
+                self._gcid,
+                len(self._password or ""),
+            )
         client.on_connect = self._handle_connect
         client.on_subscribe = self._handle_subscribe
         client.on_message = self._handle_message

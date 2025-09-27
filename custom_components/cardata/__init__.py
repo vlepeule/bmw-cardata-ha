@@ -128,7 +128,7 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
         await hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
-            data=entry.data,
+            data={**entry.data, "entry_id": entry.entry_id},
         )
 
 

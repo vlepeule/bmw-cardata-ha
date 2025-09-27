@@ -21,10 +21,11 @@ class CardataEntity(Entity):
 
     @property
     def device_info(self) -> DeviceInfo:
+        name = self._coordinator.names.get(self._vin, self._vin)
         return DeviceInfo(
             identifiers={(DOMAIN, self._vin)},
             manufacturer="BMW",
-            name=self._vin,
+            name=name,
         )
 
     @property

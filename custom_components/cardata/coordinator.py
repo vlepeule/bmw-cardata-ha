@@ -26,6 +26,7 @@ class CardataCoordinator:
     hass: HomeAssistant
     entry_id: str
     data: Dict[str, Dict[str, DescriptorState]] = field(default_factory=dict)
+    names: Dict[str, str] = field(default_factory=dict)
 
     @property
     def signal_new_sensor(self) -> str:
@@ -82,7 +83,7 @@ class CardataCoordinator:
             async_dispatcher_send(self.hass, self.signal_new_binary, vin, descriptor)
 
         if vehicle_name:
-            async_dispatcher_send(self.hass, f"{DOMAIN}_{self.entry_id}_name", vin, vehicle_name)
+            self.names[vin] = vehicle_name
 
         if vehicle_name:
             async_dispatcher_send(self.hass, f"{DOMAIN}_{self.entry_id}_name", vin, vehicle_name)
