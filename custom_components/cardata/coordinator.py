@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, Optional
 
 from homeassistant.core import HomeAssistant
-
-from .const import DEBUG_LOG
-
-_LOGGER = logging.getLogger(__name__)
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DOMAIN
+from .const import DEBUG_LOG, DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
