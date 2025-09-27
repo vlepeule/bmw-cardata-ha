@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 import aiohttp
 import voluptuous as vol
 
+import logging
+
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
@@ -101,11 +103,12 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     timeout=int(self._device_data.get("expires_in", 600)),
                 )
             except CardataAuthError as err:
+                LOGGER.warning("BMW authorization pending/failed: %s", err)
                 return self.async_show_form(
                     step_id="authorize",
                     data_schema=vol.Schema({vol.Required("confirmed", default=True): bool}),
                     errors={"base": "authorization_failed"},
-                    description_placeholders=placeholders,
+                    description_placeholders={"error": str(err), **placeholders},
                 )
 
         self._token_data = token_data
@@ -133,3 +136,4 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._client_id = entry_data.get("client_id")
         await self._request_device_code()
         return await self.async_step_authorize()
+LOGGER = logging.getLogger(__name__)

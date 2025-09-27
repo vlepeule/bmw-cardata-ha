@@ -7,11 +7,11 @@
       },
       "authorize": {
         "title": "Authorize BMW CarData",
-        "description": "Open {verification_url} and enter the user code {user_code}. Once you've approved the device, click Submit."
+        "description": "Open {verification_url} and enter the user code {user_code}. Once you've approved the device, click Submit. If approval already completed, click Submit again to continue."
       }
     },
     "error": {
-      "authorization_failed": "Authorization is not complete yet. Please approve the device and try again."
+      "authorization_failed": "Authorization is not complete yet (error: {error}). Please approve the device and try again."
     }
   }
 }
