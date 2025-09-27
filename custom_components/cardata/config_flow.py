@@ -169,6 +169,7 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
         return CardataOptionsFlowHandler(config_entry)
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -193,3 +194,7 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema({}),
         )
+
+
+async def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+    return CardataOptionsFlowHandler(config_entry)
