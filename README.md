@@ -58,7 +58,7 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 
 7. Save the selection.
 8. Install this integration via HACS.
-9. During the Home Assistant config flow, paste the client ID, visit the provided verification URL, enter the code, and approve. **Do not click Continue/Submit in Home Assistant until the BMW page confirms the approval**; submitting early leaves the flow stuck and requires a restart.
+9. During the Home Assistant config flow, paste the client ID, visit the provided verification URL, enter the code (if asked), and approve. **Do not click Continue/Submit in Home Assistant until the BMW page confirms the approval**; submitting early leaves the flow stuck and requires a restart.
 10. Wait for the car to send data—triggering an action via the MyBMW app (lock/unlock doors) usually produces updates immediately.
 
 ## Installation (HACS)
