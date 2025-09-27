@@ -98,15 +98,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.async_create_task(_async_refresh_on_startup(hass, entry))
 
-    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    data: CardataRuntimeData = hass.data[DOMAIN].pop(entry.entry_id)
+    domain_data = hass.data.get(DOMAIN)
+    if not domain_data or entry.entry_id not in domain_data:
+        return True
+    data: CardataRuntimeData = domain_data.pop(entry.entry_id)
     await data.coordinator.async_stop_watchdog()
     await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     data.refresh_task.cancel()
@@ -114,14 +115,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await data.refresh_task
     await data.stream.async_stop()
     await data.session.close()
-    if not hass.data[DOMAIN]:
+    if not domain_data:
         hass.data.pop(DOMAIN)
     return True
-
-
-async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
 
 
 async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: str) -> None:
