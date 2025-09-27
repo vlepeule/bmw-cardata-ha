@@ -28,7 +28,7 @@ class CardataCoordinator:
     entry_id: str
     data: Dict[str, Dict[str, DescriptorState]] = field(default_factory=dict)
     names: Dict[str, str] = field(default_factory=dict)
-    last_message_at: Optional[str] = None
+    last_message_at: Optional[datetime] = None
     connection_status: str = "connecting"
     last_disconnect_reason: Optional[str] = None
 
@@ -58,7 +58,7 @@ class CardataCoordinator:
         new_binary: list[str] = []
         new_sensor: list[str] = []
 
-        self.last_message_at = datetime.now(timezone.utc).isoformat()
+        self.last_message_at = datetime.now(timezone.utc)
 
         if DEBUG_LOG:
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))

@@ -70,16 +70,15 @@ class CardataDiagnosticsSensor(SensorEntity):
         self._entry_id = entry_id
         self._sensor_type = sensor_type
         self._unsub = None
+        unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
+        self._attr_unique_id = f"{entry_id}_diagnostics_{unique_suffix}"
         if sensor_type == "last_message":
             self._attr_name = "Last Message Received"
-            self._attr_unique_id = f"{entry_id}_last_message"
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
         elif sensor_type == "connection_status":
             self._attr_name = "Stream Connection Status"
-            self._attr_unique_id = f"{entry_id}_connection_status"
         else:
             self._attr_name = sensor_type
-            self._attr_unique_id = f"{entry_id}_{sensor_type}"
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -111,7 +110,10 @@ class CardataDiagnosticsSensor(SensorEntity):
 
     def _handle_update(self) -> None:
         if self._sensor_type == "last_message":
-            self._attr_native_value = self._coordinator.last_message_at
+            if self._coordinator.last_message_at is None:
+                self._attr_native_value = None
+            else:
+                self._attr_native_value = self._coordinator.last_message_at
         elif self._sensor_type == "connection_status":
             self._attr_native_value = self._coordinator.connection_status
         self.async_write_ha_state()
@@ -139,6 +141,17 @@ async def async_setup_entry(
         async_add_entities([entity])
 
     entity_registry = er.async_get(hass)
+    legacy_unique_ids = {
+        f"{entry.entry_id}_connection_status": f"{entry.entry_id}_diagnostics_connection_status",
+        f"{entry.entry_id}_last_message": f"{entry.entry_id}_diagnostics_last_message",
+    }
+    for old_unique_id, new_unique_id in legacy_unique_ids.items():
+        entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, old_unique_id)
+        if entity_id:
+            entity_registry.async_update_entity(
+                entity_id, new_unique_id=new_unique_id
+            )
+
     for entity_entry in er.async_entries_for_config_entry(
         entity_registry, entry.entry_id
     ):
@@ -162,23 +175,8 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, coordinator.signal_new_sensor, async_handle_new)
     )
 
-    diagnostic_unique_ids = {
-        "connection_status": f"{entry.entry_id}_connection_status",
-        "last_message": f"{entry.entry_id}_last_message",
-    }
-
-    existing_unique_ids = {
-        reg_entry.unique_id
-        for reg_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id)
-    }
-
-    diagnostic_entities: list[CardataDiagnosticsSensor] = []
-    for sensor_type, unique_id in diagnostic_unique_ids.items():
-        if unique_id in existing_unique_ids:
-            continue
-        diagnostic_entities.append(
-            CardataDiagnosticsSensor(coordinator, entry.entry_id, sensor_type)
-        )
-
-    if diagnostic_entities:
-        async_add_entities(diagnostic_entities)
+    diagnostic_entities = [
+        CardataDiagnosticsSensor(coordinator, entry.entry_id, "connection_status"),
+        CardataDiagnosticsSensor(coordinator, entry.entry_id, "last_message"),
+    ]
+    async_add_entities(diagnostic_entities)
