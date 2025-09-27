@@ -4,6 +4,10 @@
 
 # BimmerData Streamline (BMW CarData for Home Assistant)
 
+# This is experimental and I'm not a Python developer. Wait for the core integration to get fixed if you want stable experience, but if you want to help, keep reporting the bugs and I'll take a look! :) 
+
+# I will keep pushing possibly broken changes to this. When I feel that it's stable enough, I will create a separate branch for testing purposes, but at the moment it's highly experimental. So use at your own risk.
+
 Turn your BMW CarData stream into native Home Assistant entities. This integration subscribes directly to the BMW CarData MQTT stream, keeps the token fresh automatically, and creates sensors/binary sensors for every descriptor that emits data.
 
 **IMPORTANT: I released this to public after verifying that it works on my automations, so the testing time has been quite low so far. If you're running any critical automations, please don't use this plugin yet. I've so far (27.9) for example just refreshed the token once. So there might be some not tought out scenarios that will arise, when I get to use the plugin more. **
