@@ -51,6 +51,11 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(step_id="user", data_schema=DATA_SCHEMA)
 
         client_id = user_input["client_id"].strip()
+
+        for entry in self._async_current_entries():
+            if entry.unique_id == client_id:
+                await self.hass.config_entries.async_remove(entry.entry_id)
+
         await self.async_set_unique_id(client_id)
 
         self._client_id = client_id
