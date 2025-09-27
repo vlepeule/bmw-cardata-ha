@@ -176,8 +176,15 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, coordinator.signal_new_sensor, async_handle_new)
     )
 
-    diagnostic_entities = [
-        CardataDiagnosticsSensor(coordinator, entry.entry_id, "connection_status"),
-        CardataDiagnosticsSensor(coordinator, entry.entry_id, "last_message"),
-    ]
-    async_add_entities(diagnostic_entities, True)
+    diagnostic_entities: list[CardataDiagnosticsSensor] = []
+    for sensor_type in ("connection_status", "last_message"):
+        unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
+        unique_id = f"{entry.entry_id}_diagnostics_{unique_suffix}"
+        if entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id):
+            continue
+        diagnostic_entities.append(
+            CardataDiagnosticsSensor(coordinator, entry.entry_id, sensor_type)
+        )
+
+    if diagnostic_entities:
+        async_add_entities(diagnostic_entities, True)
