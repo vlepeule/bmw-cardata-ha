@@ -96,6 +96,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_handle_connection_event("connecting")
     await coordinator.async_start_watchdog()
 
+    hass.async_create_task(_async_refresh_on_startup(hass, entry))
+
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -221,3 +223,14 @@ async def async_manual_refresh_tokens(hass: HomeAssistant, entry: ConfigEntry) -
     if runtime is None:
         raise CardataAuthError("Integration runtime not ready")
     await _refresh_tokens(entry, runtime.session, runtime.stream)
+
+
+async def _async_refresh_on_startup(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.async_block_till_done()
+    runtime: CardataRuntimeData | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if runtime is None:
+        return
+    try:
+        await _refresh_tokens(entry, runtime.session, runtime.stream)
+    except CardataAuthError as err:
+        _LOGGER.warning("Initial token refresh failed: %s", err)
