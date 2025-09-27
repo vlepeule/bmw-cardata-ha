@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import ssl
 from typing import Awaitable, Callable, Optional
 
 import paho.mqtt.client as mqtt
@@ -60,16 +61,27 @@ class CardataStreamManager:
         self._message_callback = callback
 
     def _start_client(self) -> None:
+        client_id = f"ha{self._gcid.replace('-', '')[:20]}"
         client = mqtt.Client(
-            client_id=f"ha-cardata-{self._gcid}",
+            client_id=client_id,
             clean_session=True,
             userdata={"topic": f"{self._gcid}/+/#", "reconnect": False},
+            protocol=mqtt.MQTTv311,
+            transport="tcp",
         )
         client.username_pw_set(username=self._gcid, password=self._password)
         client.on_connect = self._handle_connect
         client.on_subscribe = self._handle_subscribe
         client.on_message = self._handle_message
         client.on_disconnect = self._handle_disconnect
+        context = ssl.create_default_context()
+        if hasattr(ssl, "TLSVersion"):
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            if hasattr(context, "maximum_version"):
+                context.maximum_version = ssl.TLSVersion.TLSv1_2
+        client.tls_set_context(context)
+        client.tls_insecure_set(False)
+        client.reconnect_delay_set(min_delay=5, max_delay=60)
 
         try:
             client.connect(self._host, self._port, keepalive=self._keepalive)
@@ -105,7 +117,14 @@ class CardataStreamManager:
             asyncio.run_coroutine_threadsafe(self._message_callback(data), self.hass.loop)
 
     def _handle_disconnect(self, client: mqtt.Client, userdata, rc) -> None:
-        _LOGGER.warning("BMW MQTT disconnected rc=%s", rc)
+        reason = {
+            1: "Unacceptable protocol version",
+            2: "Identifier rejected",
+            3: "Server unavailable",
+            4: "Bad username or password",
+            5: "Not authorized",
+        }.get(rc, "Unknown")
+        _LOGGER.warning("BMW MQTT disconnected rc=%s (%s)", rc, reason)
         if userdata is not None and isinstance(userdata, dict):
             userdata["reconnect"] = True
         asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
