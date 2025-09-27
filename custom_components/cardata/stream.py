@@ -30,6 +30,7 @@ class CardataStreamManager:
         host: str,
         port: int,
         keepalive: int,
+        error_callback: Optional[Callable[[str], Awaitable[None]]] = None,
     ) -> None:
         self.hass = hass
         self._client_id = client_id
@@ -40,6 +41,7 @@ class CardataStreamManager:
         self._keepalive = keepalive
         self._client: Optional[mqtt.Client] = None
         self._message_callback: Optional[Callable[[dict], Awaitable[None]]] = None
+        self._error_callback = error_callback
 
     async def async_start(self) -> None:
         await self.hass.async_add_executor_job(self._start_client)
@@ -110,6 +112,11 @@ class CardataStreamManager:
                     _LOGGER.debug("Subscribed to %s result=%s", topic, result)
         else:
             _LOGGER.error("BMW MQTT connection failed: rc=%s", rc)
+            if rc in (4, 5):  # bad credentials / not authorized
+                asyncio.run_coroutine_threadsafe(self._notify_error("unauthorized"), self.hass.loop)
+                client.loop_stop()
+                self._client = None
+                return
 
     def _handle_subscribe(self, client: mqtt.Client, userdata, mid, granted_qos) -> None:
         if DEBUG_LOG:
@@ -139,7 +146,10 @@ class CardataStreamManager:
         _LOGGER.warning("BMW MQTT disconnected rc=%s (%s)", rc, reason)
         if userdata is not None and isinstance(userdata, dict):
             userdata["reconnect"] = True
-        asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
+        if rc in (4, 5):
+            asyncio.run_coroutine_threadsafe(self._notify_error("unauthorized"), self.hass.loop)
+        else:
+            asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
 
     async def _async_reconnect(self) -> None:
         await self.async_stop()
@@ -148,3 +158,8 @@ class CardataStreamManager:
             await self.async_start()
         except Exception as err:
             _LOGGER.error("BMW MQTT reconnect failed: %s", err)
+
+    async def _notify_error(self, reason: str) -> None:
+        await self.async_stop()
+        if self._error_callback:
+            await self._error_callback(reason)

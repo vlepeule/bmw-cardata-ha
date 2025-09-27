@@ -11,9 +11,11 @@ from typing import Any, Dict
 
 import aiohttp
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, SOURCE_REAUTH
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+
+from homeassistant.components import persistent_notification
 
 from .const import (
     DEFAULT_SCOPE,
@@ -38,6 +40,7 @@ class CardataRuntimeData:
     refresh_task: asyncio.Task
     session: aiohttp.ClientSession
     coordinator: CardataCoordinator
+    reauth_in_progress: bool = False
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -57,6 +60,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
 
+    async def handle_stream_error(reason: str) -> None:
+        await _handle_stream_error(hass, entry, reason)
+
     manager = CardataStreamManager(
         hass=hass,
         client_id=client_id,
@@ -65,6 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         host=data.get("mqtt_host", DEFAULT_STREAM_HOST),
         port=data.get("mqtt_port", DEFAULT_STREAM_PORT),
         keepalive=MQTT_KEEPALIVE,
+        error_callback=handle_stream_error,
     )
     manager.set_message_callback(coordinator.async_handle_message)
 
@@ -81,6 +88,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         refresh_task=refresh_task,
         session=session,
         coordinator=coordinator,
+        reauth_in_progress=False,
     )
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -104,6 +112,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)
+
+
+async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: str) -> None:
+    runtime: CardataRuntimeData = hass.data[DOMAIN][entry.entry_id]
+    if reason == "unauthorized" and not runtime.reauth_in_progress:
+        runtime.reauth_in_progress = True
+        _LOGGER.error("BMW stream unauthorized; starting reauth flow")
+        persistent_notification.async_create(
+            hass,
+            "Authorization failed for BMW CarData. Please reauthorize the integration.",
+            title="BimmerData Streamline",
+            notification_id=f"{DOMAIN}_reauth_{entry.entry_id}",
+        )
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
+            data=entry.data,
+        )
 
 
 async def _refresh_loop(
@@ -139,7 +165,7 @@ async def _refresh_tokens(
         session,
         client_id=client_id,
         refresh_token=refresh_token,
-        scope=DEFAULT_SCOPE,
+        scope=None,
     )
 
     data.update(
