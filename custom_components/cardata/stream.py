@@ -44,6 +44,7 @@ class CardataStreamManager:
         self._error_callback = error_callback
         self._reauth_notified = False
         self._unauthorized_retry_in_progress = False
+        self._awaiting_new_credentials = False
 
     async def async_start(self) -> None:
         await self.hass.async_add_executor_job(self._start_client)
@@ -53,15 +54,6 @@ class CardataStreamManager:
             self._client.loop_stop()
             self._client.disconnect()
             self._client = None
-
-    async def async_update_token(self, id_token: Optional[str]) -> None:
-        if not id_token:
-            return
-        self._password = id_token
-        if self._client:
-            _LOGGER.debug("Updating MQTT password; reconnecting")
-            await self.async_stop()
-            await self.async_start()
 
     def set_message_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
         self._message_callback = callback
@@ -120,6 +112,7 @@ class CardataStreamManager:
                     _LOGGER.debug("Subscribed to %s result=%s", topic, result)
             if self._reauth_notified:
                 self._reauth_notified = False
+                self._awaiting_new_credentials = False
                 asyncio.run_coroutine_threadsafe(self._notify_recovered(), self.hass.loop)
         else:
             _LOGGER.error("BMW MQTT connection failed: rc=%s", rc)
@@ -175,16 +168,12 @@ class CardataStreamManager:
             return
         self._unauthorized_retry_in_progress = True
         try:
+            self._awaiting_new_credentials = True
             if not self._reauth_notified:
                 self._reauth_notified = True
                 await self._notify_error("unauthorized")
             else:
                 await self.async_stop()
-            await asyncio.sleep(5)
-            try:
-                await self.async_start()
-            except Exception as err:
-                _LOGGER.error("BMW MQTT reconnect failed after unauthorized: %s", err)
         finally:
             self._unauthorized_retry_in_progress = False
 
@@ -196,3 +185,22 @@ class CardataStreamManager:
     async def _notify_recovered(self) -> None:
         if self._error_callback:
             await self._error_callback("recovered")
+
+    async def async_update_token(self, id_token: Optional[str]) -> None:
+        if not id_token:
+            return
+        self._password = id_token
+        if self._client:
+            _LOGGER.debug("Updating MQTT password; reconnecting")
+            await self.async_stop()
+        if self._awaiting_new_credentials:
+            self._awaiting_new_credentials = False
+            try:
+                await self.async_start()
+            except Exception as err:
+                _LOGGER.error("BMW MQTT reconnect failed after token refresh: %s", err)
+        elif self._client is None:
+            try:
+                await self.async_start()
+            except Exception as err:
+                _LOGGER.error("BMW MQTT reconnect failed during token update: %s", err)

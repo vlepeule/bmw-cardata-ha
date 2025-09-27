@@ -41,6 +41,7 @@ class CardataRuntimeData:
     session: aiohttp.ClientSession
     coordinator: CardataCoordinator
     reauth_in_progress: bool = False
+    reauth_flow_id: str | None = None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -89,6 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         session=session,
         coordinator=coordinator,
         reauth_in_progress=False,
+        reauth_flow_id=None,
     )
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -127,16 +129,22 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
                 title="BimmerData Streamline",
                 notification_id=notification_id,
             )
-            await hass.config_entries.flow.async_init(
+            flow_result = await hass.config_entries.flow.async_init(
                 DOMAIN,
                 context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
                 data={**entry.data, "entry_id": entry.entry_id},
             )
+            if isinstance(flow_result, dict):
+                runtime.reauth_flow_id = flow_result.get("flow_id")
     elif reason == "recovered":
         if runtime.reauth_in_progress:
             runtime.reauth_in_progress = False
             _LOGGER.info("BMW stream connection restored; dismissing reauth notification")
             persistent_notification.async_dismiss(hass, notification_id)
+            if runtime.reauth_flow_id:
+                with suppress(Exception):
+                    await hass.config_entries.flow.async_abort(runtime.reauth_flow_id)
+                runtime.reauth_flow_id = None
 
 
 async def _refresh_loop(

@@ -53,8 +53,9 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         client_id = user_input["client_id"].strip()
 
-        for entry in self._async_current_entries():
-            if entry.unique_id == client_id:
+        for entry in list(self._async_current_entries()):
+            existing_client_id = entry.data.get("client_id") if hasattr(entry, "data") else None
+            if entry.unique_id == client_id or existing_client_id == client_id:
                 await self.hass.config_entries.async_remove(entry.entry_id)
 
         await self.async_set_unique_id(client_id)
@@ -149,6 +150,7 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             runtime = self.hass.data.get(DOMAIN, {}).get(self._reauth_entry.entry_id)
             if runtime:
                 runtime.reauth_in_progress = False
+                runtime.reauth_flow_id = None
             return self.async_abort(reason="reauth_successful")
 
         friendly_title = f"BimmerData Streamline ({self._client_id[:8]})"
