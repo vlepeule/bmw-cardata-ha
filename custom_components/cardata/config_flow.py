@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import secrets
 import string
 import time
@@ -26,6 +28,11 @@ DATA_SCHEMA = vol.Schema({vol.Required("client_id"): str})
 def _build_code_verifier() -> str:
     alphabet = string.ascii_letters + string.digits + "-._~"
     return "".join(secrets.choice(alphabet) for _ in range(86))
+
+
+def _generate_code_challenge(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -69,6 +76,7 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 session,
                 client_id=self._client_id,
                 scope=DEFAULT_SCOPE,
+                code_challenge=_generate_code_challenge(self._code_verifier),
             )
 
     async def async_step_authorize(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:

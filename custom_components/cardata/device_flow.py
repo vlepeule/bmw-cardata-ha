@@ -20,6 +20,8 @@ async def request_device_code(
     *,
     client_id: str,
     scope: str,
+    code_challenge: str,
+    code_challenge_method: str = "S256",
 ) -> Dict[str, Any]:
     """Request a device & user code pair from BMW."""
 
@@ -27,6 +29,8 @@ async def request_device_code(
         "client_id": client_id,
         "scope": scope,
         "response_type": "device_code",
+        "code_challenge": code_challenge,
+        "code_challenge_method": code_challenge_method,
     }
     async with session.post(DEVICE_CODE_URL, data=data) as resp:
         if resp.status != 200:
