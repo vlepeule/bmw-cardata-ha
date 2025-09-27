@@ -16,7 +16,7 @@ import voluptuous as vol
 import logging
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
 from . import async_manual_refresh_tokens
@@ -164,6 +164,11 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._client_id = entry_data.get("client_id")
         await self._request_device_code()
         return await self.async_step_authorize()
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+        return CardataOptionsFlowHandler(config_entry)
 LOGGER = logging.getLogger(__name__)
 
 
@@ -188,7 +193,3 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema({}),
         )
-
-
-async def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
-    return CardataOptionsFlowHandler(config_entry)
