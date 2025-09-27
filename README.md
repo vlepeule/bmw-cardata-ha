@@ -83,7 +83,7 @@ If BMW rejects the token (e.g. because the portal revoked it), the integration:
 
 ## Entity Naming & Structure
 
-- Each VIN becomes a device in HA (`VIN` + model name pulled from CarData).
+- Each VIN becomes a device in HA (`VIN` pulled from CarData).
 - Sensors/binary sensors are auto-created and named from descriptors (e.g. `Cabin Door Row1 Driver Is Open`).
 - Additional attributes include the source timestamp.
 
