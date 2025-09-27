@@ -46,7 +46,8 @@ class CardataSensor(CardataEntity, SensorEntity):
             self._attr_native_value = None
             self._attr_native_unit_of_measurement = None
 
-        self.async_schedule_update_ha_state()
+        if self.hass and self.hass.loop:
+            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
 
 async def async_setup_entry(
