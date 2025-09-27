@@ -8,6 +8,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
 from .coordinator import CardataCoordinator
@@ -39,6 +40,9 @@ class CardataSensor(CardataEntity, SensorEntity):
             return
         state = self._coordinator.get_state(vin, descriptor)
         if not state:
+            self._attr_native_value = None
+            self._attr_native_unit_of_measurement = None
+            self.async_write_ha_state()
             return
         self._attr_native_value = state.value
         self._attr_native_unit_of_measurement = state.unit
@@ -53,15 +57,32 @@ async def async_setup_entry(
 
     entities: Dict[Tuple[str, str], CardataSensor] = {}
 
-    def ensure_entity(vin: str, descriptor: str) -> None:
+    def ensure_entity(vin: str, descriptor: str, *, assume_sensor: bool = False) -> None:
         if (vin, descriptor) in entities:
             return
         state = coordinator.get_state(vin, descriptor)
-        if not state or isinstance(state.value, bool):
+        if state:
+            if isinstance(state.value, bool):
+                return
+        elif not assume_sensor:
             return
         entity = CardataSensor(coordinator, vin, descriptor)
         entities[(vin, descriptor)] = entity
         async_add_entities([entity])
+
+    entity_registry = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
+    ):
+        if entity_entry.domain != "sensor":
+            continue
+        if entity_entry.disabled_by is not None:
+            continue
+        unique_id = entity_entry.unique_id
+        if not unique_id or "_" not in unique_id:
+            continue
+        vin, descriptor = unique_id.split("_", 1)
+        ensure_entity(vin, descriptor, assume_sensor=True)
 
     for vin, descriptor in coordinator.iter_descriptors(binary=False):
         ensure_entity(vin, descriptor)

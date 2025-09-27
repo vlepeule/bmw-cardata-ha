@@ -29,6 +29,11 @@ class CardataEntity(Entity):
         )
 
     @property
+    def available(self) -> bool:
+        """Return True when the coordinator has a state for this descriptor."""
+        return self._coordinator.get_state(self._vin, self._descriptor) is not None
+
+    @property
     def extra_state_attributes(self) -> dict:
         state = self._coordinator.get_state(self._vin, self._descriptor)
         if not state:
