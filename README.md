@@ -6,12 +6,11 @@
 
 Turn your BMW CarData stream into native Home Assistant entities. This integration subscribes directly to the BMW CarData MQTT stream, keeps the token fresh automatically, and creates sensors/binary sensors for every descriptor that emits data.
 
+**IMPORTANT:** I released this to public after verifying that it works on my automations, so the testing time has been quite low so far. If you're running any critical automations, please don't use this plugin yet. I've so far (27.9) for example just refreshed the token once. So there might be some not tought out scenarios that will arise, when I get to use the plugin more. 
+
 > **Note:** This entire plugin was generated with the assistance of AI to quickly solve issues with the legacy implementation. The code is intentionally open—modify, fork, or build a new integration from it. PRs are welcome unless otherwise noted in the future.
 
 > **Tested Environment:** The integration has only been verified on my own Home Assistant instance (2024.12.5). Newer releases might require adjustments.
-
-> **Tested Environment:** I release this to public after verifying that it works on my automations, so the testing time has been quite low so far. If you're running any critical automations, please don't use this plugin yet. I've so far (27.9) for example just refreshed the token once. So there might be some not tought out scenarios that will arise, when I get to use the plugin more. 
-
 
 > **Heads-up:** The first authentication attempt occasionally stalls. If the integration immediately asks for re-auth, repeat the flow slowly—sign in on the BMW page, wait a moment after the portal confirms, then click Submit in Home Assistant. Once it completes, trigger an action in the MyBMW app (e.g., lock/unlock) to nudge the vehicle to send data and give it a couple of minutes to appear.
 
