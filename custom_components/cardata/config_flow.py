@@ -52,7 +52,6 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         client_id = user_input["client_id"].strip()
         await self.async_set_unique_id(client_id)
-        self._abort_if_unique_id_configured()
 
         self._client_id = client_id
 
