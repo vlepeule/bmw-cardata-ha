@@ -114,13 +114,12 @@ class CardataStreamManager:
                 self._reauth_notified = False
                 self._awaiting_new_credentials = False
                 asyncio.run_coroutine_threadsafe(self._notify_recovered(), self.hass.loop)
-        else:
+        elif rc in (4, 5):  # bad credentials / not authorized
             _LOGGER.error("BMW MQTT connection failed: rc=%s", rc)
-            if rc in (4, 5):  # bad credentials / not authorized
-                asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
-                client.loop_stop()
-                self._client = None
-                return
+            asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
+            client.loop_stop()
+            self._client = None
+            return
 
     def _handle_subscribe(self, client: mqtt.Client, userdata, mid, granted_qos) -> None:
         if DEBUG_LOG:

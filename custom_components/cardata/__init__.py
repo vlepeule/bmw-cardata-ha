@@ -120,22 +120,28 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
     runtime: CardataRuntimeData = hass.data[DOMAIN][entry.entry_id]
     notification_id = f"{DOMAIN}_reauth_{entry.entry_id}"
     if reason == "unauthorized":
-        if not runtime.reauth_in_progress:
-            runtime.reauth_in_progress = True
-            _LOGGER.error("BMW stream unauthorized; starting reauth flow")
-            persistent_notification.async_create(
-                hass,
-                "Authorization failed for BMW CarData. Please reauthorize the integration.",
-                title="BimmerData Streamline",
-                notification_id=notification_id,
-            )
-            flow_result = await hass.config_entries.flow.async_init(
-                DOMAIN,
-                context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
-                data={**entry.data, "entry_id": entry.entry_id},
-            )
-            if isinstance(flow_result, dict):
-                runtime.reauth_flow_id = flow_result.get("flow_id")
+        if runtime.reauth_in_progress:
+            _LOGGER.debug("Ignoring duplicate unauthorized notification for entry %s", entry.entry_id)
+            return
+        runtime.reauth_in_progress = True
+        _LOGGER.error("BMW stream unauthorized; starting reauth flow")
+        if runtime.reauth_flow_id:
+            with suppress(Exception):
+                await hass.config_entries.flow.async_abort(runtime.reauth_flow_id)
+            runtime.reauth_flow_id = None
+        persistent_notification.async_create(
+            hass,
+            "Authorization failed for BMW CarData. Please reauthorize the integration.",
+            title="BimmerData Streamline",
+            notification_id=notification_id,
+        )
+        flow_result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
+            data={**entry.data, "entry_id": entry.entry_id},
+        )
+        if isinstance(flow_result, dict):
+            runtime.reauth_flow_id = flow_result.get("flow_id")
     elif reason == "recovered":
         if runtime.reauth_in_progress:
             runtime.reauth_in_progress = False
