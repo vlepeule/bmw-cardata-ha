@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Iterable, Optional
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DEBUG_LOG, DOMAIN
+from .const import DEBUG_LOG, DOMAIN, DIAGNOSTIC_LOG_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ class CardataCoordinator:
     last_message_at: Optional[datetime] = None
     connection_status: str = "connecting"
     last_disconnect_reason: Optional[str] = None
+    _next_log_due: Optional[datetime] = None
 
     @property
     def signal_new_sensor(self) -> str:
@@ -59,6 +60,7 @@ class CardataCoordinator:
         new_sensor: list[str] = []
 
         self.last_message_at = datetime.now(timezone.utc)
+        self._next_log_due = datetime.now(timezone.utc)
 
         if DEBUG_LOG:
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
@@ -117,4 +119,14 @@ class CardataCoordinator:
             self.last_disconnect_reason = reason
         elif status == "connected":
             self.last_disconnect_reason = None
+        now = datetime.now(timezone.utc)
+        if self._next_log_due is None or now >= self._next_log_due:
+            if DEBUG_LOG:
+                _LOGGER.debug(
+                    "Stream diagnostics: status=%s last_reason=%s last_message=%s",
+                    self.connection_status,
+                    self.last_disconnect_reason,
+                    self.last_message_at,
+                )
+            self._next_log_due = now + timedelta(seconds=DIAGNOSTIC_LOG_INTERVAL)
         async_dispatcher_send(self.hass, self.signal_diagnostics)

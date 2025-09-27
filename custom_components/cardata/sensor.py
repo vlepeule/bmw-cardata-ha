@@ -75,8 +75,11 @@ class CardataDiagnosticsSensor(SensorEntity):
         if sensor_type == "last_message":
             self._attr_name = "Last Message Received"
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
+            if coordinator.last_message_at is not None:
+                self._attr_native_value = coordinator.last_message_at
         elif sensor_type == "connection_status":
             self._attr_name = "Stream Connection Status"
+            self._attr_native_value = coordinator.connection_status
         else:
             self._attr_name = sensor_type
 
