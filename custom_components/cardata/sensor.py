@@ -39,14 +39,14 @@ class CardataSensor(CardataEntity, SensorEntity):
         if vin != self.vin or descriptor != self.descriptor:
             return
         state = self._coordinator.get_state(vin, descriptor)
-        if not state:
+        if state:
+            self._attr_native_value = state.value
+            self._attr_native_unit_of_measurement = state.unit
+        else:
             self._attr_native_value = None
             self._attr_native_unit_of_measurement = None
-            self.async_write_ha_state()
-            return
-        self._attr_native_value = state.value
-        self._attr_native_unit_of_measurement = state.unit
-        self.async_write_ha_state()
+
+        self.async_schedule_update_ha_state()
 
 
 async def async_setup_entry(

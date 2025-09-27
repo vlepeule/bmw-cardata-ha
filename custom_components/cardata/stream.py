@@ -42,6 +42,8 @@ class CardataStreamManager:
         self._client: Optional[mqtt.Client] = None
         self._message_callback: Optional[Callable[[dict], Awaitable[None]]] = None
         self._error_callback = error_callback
+        self._reauth_notified = False
+        self._unauthorized_retry_in_progress = False
 
     async def async_start(self) -> None:
         await self.hass.async_add_executor_job(self._start_client)
@@ -116,10 +118,13 @@ class CardataStreamManager:
                 result = client.subscribe(topic)
                 if DEBUG_LOG:
                     _LOGGER.debug("Subscribed to %s result=%s", topic, result)
+            if self._reauth_notified:
+                self._reauth_notified = False
+                asyncio.run_coroutine_threadsafe(self._notify_recovered(), self.hass.loop)
         else:
             _LOGGER.error("BMW MQTT connection failed: rc=%s", rc)
             if rc in (4, 5):  # bad credentials / not authorized
-                asyncio.run_coroutine_threadsafe(self._notify_error("unauthorized"), self.hass.loop)
+                asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
                 client.loop_stop()
                 self._client = None
                 return
@@ -153,7 +158,7 @@ class CardataStreamManager:
         if userdata is not None and isinstance(userdata, dict):
             userdata["reconnect"] = True
         if rc in (4, 5):
-            asyncio.run_coroutine_threadsafe(self._notify_error("unauthorized"), self.hass.loop)
+            asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
         else:
             asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
 
@@ -165,7 +170,29 @@ class CardataStreamManager:
         except Exception as err:
             _LOGGER.error("BMW MQTT reconnect failed: %s", err)
 
+    async def _handle_unauthorized(self) -> None:
+        if self._unauthorized_retry_in_progress:
+            return
+        self._unauthorized_retry_in_progress = True
+        try:
+            if not self._reauth_notified:
+                self._reauth_notified = True
+                await self._notify_error("unauthorized")
+            else:
+                await self.async_stop()
+            await asyncio.sleep(5)
+            try:
+                await self.async_start()
+            except Exception as err:
+                _LOGGER.error("BMW MQTT reconnect failed after unauthorized: %s", err)
+        finally:
+            self._unauthorized_retry_in_progress = False
+
     async def _notify_error(self, reason: str) -> None:
         await self.async_stop()
         if self._error_callback:
             await self._error_callback(reason)
+
+    async def _notify_recovered(self) -> None:
+        if self._error_callback:
+            await self._error_callback("recovered")

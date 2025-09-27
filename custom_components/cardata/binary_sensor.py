@@ -39,12 +39,14 @@ class CardataBinarySensor(CardataEntity, BinarySensorEntity):
         if vin != self.vin or descriptor != self.descriptor:
             return
         state = self._coordinator.get_state(vin, descriptor)
-        if not state or not isinstance(state.value, bool):
+        if state:
+            if not isinstance(state.value, bool):
+                return
+            self._attr_is_on = state.value
+        else:
             self._attr_is_on = None
-            self.async_write_ha_state()
-            return
-        self._attr_is_on = state.value
-        self.async_write_ha_state()
+
+        self.async_schedule_update_ha_state()
 
 
 async def async_setup_entry(

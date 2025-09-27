@@ -116,20 +116,27 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: str) -> None:
     runtime: CardataRuntimeData = hass.data[DOMAIN][entry.entry_id]
-    if reason == "unauthorized" and not runtime.reauth_in_progress:
-        runtime.reauth_in_progress = True
-        _LOGGER.error("BMW stream unauthorized; starting reauth flow")
-        persistent_notification.async_create(
-            hass,
-            "Authorization failed for BMW CarData. Please reauthorize the integration.",
-            title="BimmerData Streamline",
-            notification_id=f"{DOMAIN}_reauth_{entry.entry_id}",
-        )
-        await hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
-            data={**entry.data, "entry_id": entry.entry_id},
-        )
+    notification_id = f"{DOMAIN}_reauth_{entry.entry_id}"
+    if reason == "unauthorized":
+        if not runtime.reauth_in_progress:
+            runtime.reauth_in_progress = True
+            _LOGGER.error("BMW stream unauthorized; starting reauth flow")
+            persistent_notification.async_create(
+                hass,
+                "Authorization failed for BMW CarData. Please reauthorize the integration.",
+                title="BimmerData Streamline",
+                notification_id=notification_id,
+            )
+            await hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": SOURCE_REAUTH, "entry_id": entry.entry_id},
+                data={**entry.data, "entry_id": entry.entry_id},
+            )
+    elif reason == "recovered":
+        if runtime.reauth_in_progress:
+            runtime.reauth_in_progress = False
+            _LOGGER.info("BMW stream connection restored; dismissing reauth notification")
+            persistent_notification.async_dismiss(hass, notification_id)
 
 
 async def _refresh_loop(
