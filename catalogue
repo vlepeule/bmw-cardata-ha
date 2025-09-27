@@ -1,0 +1,3106 @@
+CarData Element
+
+Description
+
+Technical identifier
+
+Data type
+
+Typical value range
+
+Unit
+
+Streaming capable
+
+Activation status of the built-in SIM card
+
+This value indicates whether the SIM card installed in the vehicle is activated. 
+
+vehicle​.sim​.status
+
+true, false
+
+Vehicle basic data
+
+This value displays a list of basic vehicle data, such as vehicle make and full model name.
+
+vehicle​.vehicleIdentification​.basicVehicleData
+
+Details are in the corresponding Swagger documentation: ../basicData
+
+Vehicle image
+
+The value provides an image of the vehicle as a PNG file.
+
+vehicle​.look​.image
+
+PNG file
+
+Size of the high-voltage battery
+
+The value indicates the size of the installed high-voltage battery.
+
+vehicle​.drivetrain​.batteryManagement​.batterySizeMax
+
+float
+
+0 - 300 kWh, INVALID
+
+kWh
+
+List of special equipment
+
+This value displays a list of information about the vehicle's special equipment.
+
+vehicle​.extras​.optionalEquipment​.code
+
+4-digit number and/or letter code separated by a comma
+
+Maximum energy content of the high-voltage battery
+
+The value indicates the maximum energy content of the high-voltage battery that can be used by the customer.
+
+vehicle​.drivetrain​.electricEngine​.hvsMaxEnergyAbsolute
+
+0 - 300 kWh, INVALID
+
+kWh
+
+Activation time of the anti-theft alarm system
+
+Timestamp with the time of the last alarm trigger. This value is provided without time zone information.
+
+vehicle​.vehicle​.antiTheftAlarmSystem​.alarm​.activationTime
+
+string
+
+None
+
+Number of CBS reports
+
+This value indicates the maximum number of service requirement messages that can be transmitted from the vehicle to BMW via telematics. The actual number of transmitted service requirement messages (see separate CBS key) varies depending on how the vehicle is used and whether service-relevant thresholds have been reached. Note: Not all condition-based service messages that occur in the vehicle are transmitted.
+
+vehicle​.status​.conditionBasedServicesCount
+
+uint16
+
+0 to 60 messages
+
+Number of free spaces POI in the navigation system
+
+The value indicates how many POIs (points of interest) are still free in the navigation system.
+
+vehicle​.cabin​.infotainment​.navigation​.pointsOfInterests​.available
+
+uint16
+
+25
+
+Display unit of the instrument display in the vehicle
+
+The value indicates the unit (kilometers or miles) of the measured distance values ​​in the vehicle's instrument display.
+
+vehicle​.cabin​.infotainment​.displayUnit​.distance
+
+string
+
+km, miles
+
+Alignment of the vehicle
+
+This value indicates the orientation of the vehicle at the time of data collection in degrees. If the value is 180, the vehicle was pointing exactly south. If the value is 0, the vehicle was pointing exactly north. Therefore, the values ​​range from 0 to 359. The determined orientation of the vehicle may differ from the actual orientation due to the inaccuracy of the GPS positioning.
+
+vehicle​.cabin​.infotainment​.navigation​.currentLocation​.heading
+
+double
+
+0 ° to 359 °
+
+degrees
+
+Battery voltage
+
+The value indicates the current battery voltage in the vehicle's electrical system at the time of data acquisition. The value is always given in volts, for example, 14.4 V.
+
+vehicle​.electricalSystem​.battery​.voltage
+
+float
+
+5 V to 20 V
+
+V
+
+Preferred Service Partner
+
+Indicates which service partner the vehicle is currently assigned to.
+
+vehicle​.service​.preferredSevicePartner
+
+string
+
+Vehicle's state of motion
+
+The value indicates whether the vehicle was moving at the time the data was collected.
+
+vehicle​.isMoving
+
+boolean
+
+ASN_isFalse, ASN_isTrue, ASN_isUnknown
+
+Date of next inspection
+
+The value indicates when the next inspection is due. It is displayed as a date, for example, 09/30/2018 23:00 UTC.
+
+vehicle​.status​.serviceTime​.inspectionDateLegal
+
+string
+
+dd.mm.yyyy hh:mm UTC
+
+Date and time in the vehicle
+
+The value indicates the time displayed in the vehicle at the time the data was collected.
+
+vehicle​.channel​.ngtp​.timeVehicle
+
+string
+
+00:00 to 23:59
+
+Anti-theft alarm system is switched on
+
+The anti-theft alarm system is active (the vehicle honks).
+
+vehicle​.vehicle​.antiTheftAlarmSystem​.alarm​.isOn
+
+boolean
+
+true, false
+
+Direct heating passenger side third row of seats
+
+DirectStart settings for the seat heating on the passenger side third row of seats for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row3​.passengerSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct heating rear passenger side
+
+DirectStart settings for the rear passenger seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row2​.passengerSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct heating front passenger side
+
+DirectStart settings for the front passenger seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row1​.passengerSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct heating driver's side third row of seats
+
+DirectStart settings for the seat heating on the driver's side third row for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row3​.driverSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct heating driver's side rear
+
+DirectStart settings for the rear driver's seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row2​.driverSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct heating steering wheel
+
+DirectStart settings for the steering wheel heater for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.steeringWheel​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct heating seat driver's side front
+
+DirectStart settings for the front driver's seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row1​.driverSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct cooling passenger side third row of seats
+
+DirectStart settings for seat cooling/ventilation on the passenger side third row of seats for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row3​.passengerSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct cooling passenger side rear
+
+DirectStart settings for rear passenger seat cooling/ventilation for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row2​.passengerSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct cooling passenger side front
+
+DirectStart settings for front passenger seat cooling/ventilation for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row1​.passengerSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct cooling driver's side third row of seats
+
+DirectStart settings for seat cooling/ventilation on the driver's side third row of seats for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row3​.driverSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct cooling driver's side rear
+
+DirectStart settings for rear driver's seat cooling/ventilation for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row2​.driverSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Direct cooling seat driver's side front
+
+DirectStart settings for seat cooling/ventilation on the driver's side front for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.seat​.row1​.driverSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Disclaimer for remote air conditioning
+
+True if the Remote Engine Start option is set, false otherwise.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.isRemoteEngineStartDisclaimer
+
+boolean
+
+true, false
+
+Distance to the next service
+
+This value indicates how many kilometers remain until the next service at the time of data collection. Note: This value is calculated from the individual CBS volumes and is not determined with each data transfer. For more details, see "Condition Based Service."
+
+vehicle​.status​.serviceDistance​.next
+
+uint16
+
+0 km to 100,000 km
+
+Distance threshold for service information
+
+The specified static value is stored in the vehicle and indicates when the customer first receives a mileage-based notification in the vehicle that a service is due soon. It is expressed in kilometers (for example, 2000).
+
+vehicle​.status​.serviceDistance​.yellow
+
+uint16
+
+2000 km
+
+Distance to navigation destination
+
+The value indicates the distance to the active navigation destination in kilometers measured at the time of data collection. The range is from 0 to 100,000.
+
+vehicle​.cabin​.infotainment​.navigation​.destinationSet​.distance
+
+uint16
+
+0 km to 100,000 km
+
+Rear defrosting active
+
+Current status of the rear window heater.
+
+vehicle​.cabin​.hvac​.preconditioning​.status​.rearDefrostActive
+
+boolean
+
+true, false
+
+Unlocking the rear window
+
+The value indicates whether the rear window is unlocked (TRUE) or closed (FALSE).
+
+vehicle​.body​.trunk​.window​.isOpen
+
+boolean
+
+CLOSED, OPEN, INVALID
+
+Permission to use the engine for preconditioning.
+
+This value indicates whether engine use is permitted for preconditioning the stationary air conditioning at the time of data collection. This is determined by the customer.
+
+vehicle​.vehicle​.preConditioning​.isRemoteEngineStartAllowed
+
+boolean
+
+true, false, INVALID
+
+Error memory
+
+The error log provides information about potential malfunctions or technical defects in the vehicle. This information is intended for workshops. Customer-relevant malfunctions that are displayed to the driver in the vehicle can be found under the CarData element "Check Control Messages." Details on this can be found in the vehicle's owner's manual.
+
+vehicle​.electronicControlUnit​.diagnosticTroubleCodes​.raw
+
+The JSON structure is appended at the end of the table (4).
+
+Progress of pre-conditioning
+
+Progress of the currently active pre-conditioning in percent.
+
+vehicle​.cabin​.hvac​.preconditioning​.status​.progress
+
+uint8
+
+0% to 100%
+
+percent
+
+Overall status of the sunroof
+
+Overall status of the vehicle's sunroof.
+
+vehicle​.cabin​.sunroof​.overallStatus
+
+string
+
+INVALID, OPEN, OPEN_TILT, INTERMEDIATE_TILT, CLOSED
+
+Battery health status
+
+This value indicates the battery's health status. 200 = Battery health is sufficient; 140 = Limited - Battery replacement recommended; 110 = Insufficient - Battery replacement required; 80 = Degraded - Battery replacement urgently required.
+
+vehicle​.electricalSystem​.battery​.serviceDemand​.replace
+
+200 140 110 80
+
+Reason for non-execution of preconditioning of stationary air conditioning
+
+The value indicates the reason for non-execution of the stationary air conditioning at the time of data collection. 
+
+vehicle​.vehicle​.preConditioning​.error
+
+string
+
+LowFuel LowBattery QuotaExceeded HeaterFailure ComponentFailure OpenOrUnlocked OK INVALID
+
+Mileage
+
+The value indicates the current mileage at the time the data was collected.
+
+vehicle​.vehicle​.travelledDistance
+
+float
+
+0 km to 500,000 km
+
+zero
+
+Tilt status of the sunroof
+
+The value indicates whether the sunroof (if present) was tilted (OPEN), half tilted (INTERMEDIATE) or closed (CLOSED) at the time the data was collected.
+
+vehicle​.cabin​.sunroof​.tiltStatus
+
+string
+
+CLOSED, INTERMEDIATE, OPEN, INVALID
+
+Comfort state of pre-conditioning
+
+Status of the comfort state of the pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.status​.comfortState
+
+string
+
+NOT_ACTIVE, COMFORT_HEATING, COMFORT_COOLING, COMFORT_VENTILATION, DEFROST, COMFORT_UNDEFINED
+
+Pairing mobile phone
+
+The value indicates whether a mobile phone was paired with the vehicle at the time of data collection or whether the pairing status is unknown.
+
+vehicle​.cabin​.infotainment​.isMobilePhoneConnected
+
+boolean
+
+ASN_isFalse, ASN_isTrue, ASN_isUnknown
+
+Coolant temperature
+
+The value indicates the current coolant temperature in degrees Celsius at the time of data collection.
+
+vehicle​.drivetrain​.internalCombustionEngine​.engine​.ect
+
+int16
+
+0 °C to 150 °C
+
+Celsius
+
+Charging profile
+
+The charging profile provides information about the last charging mode selected in the vehicle. This CarData element may also be used for vehicles without electric drive to display individual attributes, such as the pre-conditioning setting.
+
+vehicle​.drivetrain​.electricEngine​.charging​.profile​.mode
+
+string
+
+kWh
+
+Steering wheel heating
+
+Actual value of the steering wheel heating in percent.
+
+vehicle​.cabin​.steeringWheel​.heating
+
+uint8
+
+0% to 100%
+
+percent
+
+Left trunk door open
+
+Condition of the left trunk door.
+
+vehicle​.body​.trunk​.left​.door​.isOpen
+
+boolean
+
+true, false
+
+Maximum number of POIs stored in the navigation device
+
+The value indicates the maximum number of POIs (points of interest) that can be stored in the navigation device.
+
+vehicle​.cabin​.infotainment​.navigation​.pointsOfInterests​.max
+
+uint16
+
+25
+
+Navigation destination – geographical latitude
+
+This value specifies the coordinate of the active navigation destination - latitude at the time of data acquisition in billionths of a second.
+
+vehicle​.cabin​.infotainment​.navigation​.destinationSet​.latitude
+
+-
+
+Navigation destination – geographical longitude
+
+This value specifies the coordinate of the active navigation destination - longitude at the time of data acquisition in billionths of a second.
+
+vehicle​.cabin​.infotainment​.navigation​.destinationSet​.longitude
+
+-
+
+Low-voltage battery
+
+The value indicates the charge level of the low-voltage battery measured in percent at the time of data collection.
+
+vehicle​.electricalSystem​.battery​.stateOfCharge
+
+-
+
+%
+
+Low-voltage battery plausibility
+
+This value indicates whether the measured state of charge of the low-voltage battery is plausible in percent.
+
+vehicle​.electricalSystem​.battery​.stateOfChargePlausibility
+
+-
+
+Need to recharge the battery
+
+The value indicates whether battery recharging is necessary. 1 = Recharging necessary 0 = Recharging not necessary
+
+vehicle​.electricalSystem​.battery​.serviceDemand​.recharge
+
+1 0
+
+Use of the engine for preconditioning
+
+This value indicates whether the engine was running during preconditioning at the time of data collection. The value "Inactive" can be transmitted if preconditioning is not booked or even if preconditioning is not active at the time of data collection.
+
+vehicle​.vehicle​.preConditioning​.isRemoteEngineRunning
+
+boolean
+
+true, false
+
+Upper trunk door opened
+
+Condition of the upper trunk door.
+
+vehicle​.body​.trunk​.upper​.door​.isOpen
+
+boolean
+
+true, false
+
+Vehicle position – geographical latitude
+
+This value indicates the geographical latitude of the position the vehicle was at at the time the data was collected. Latitude ranges in degrees from 0 (at the equator) to a maximum of +90 in the northern hemisphere and -90 in the southern hemisphere. The GPS position is transmitted regardless of whether GPS tracking is enabled or disabled in your vehicle via the settings menu.
+
+vehicle​.cabin​.infotainment​.navigation​.currentLocation​.latitude
+
+double
+
+-90.0000 to +90.0000
+
+degrees
+
+Vehicle position – longitude
+
+This value indicates the geographical longitude of the position the vehicle was at at the time the data was collected. Longitude ranges in degrees from 0 (at the prime meridian in Greenwich, Great Britain) to a maximum of +180 degrees east or -180 degrees west of the prime meridian. The GPS position is transmitted independently of whether GPS tracking is enabled or disabled in your vehicle via the settings menu.
+
+vehicle​.cabin​.infotainment​.navigation​.currentLocation​.longitude
+
+double
+
+-180,0000 to +180,0000
+
+degrees
+
+Position of the vehicle above mean sea level
+
+The value indicates the altitude in meters above sea level at which the vehicle was located at the time of data collection. The range is from -100 to 6000.
+
+vehicle​.cabin​.infotainment​.navigation​.currentLocation​.altitude
+
+double
+
+-100 m to 6000 m or -NA-
+
+Position of the parasol
+
+Position of the element. 0 = start position, 100 = end position.
+
+vehicle​.cabin​.sunroof​.shade​.position
+
+uint8
+
+0% to 100%
+
+percent
+
+Right trunk door open
+
+Condition of the right trunk door.
+
+vehicle​.body​.trunk​.right​.door​.isOpen
+
+boolean
+
+true, false
+
+Relative position of the sunroof
+
+Sunroof opening percentage. -100 means fully tilted. 0% corresponds to fully closed, 100% corresponds to fully open.
+
+vehicle​.cabin​.sunroof​.relativePosition
+
+int8
+
+-100% to 100%
+
+percent
+
+Remaining range
+
+The value indicates the remaining range of the tank contents in kilometers measured at the time of data collection.
+
+vehicle​.cabin​.infotainment​.navigation​.remainingRange
+
+uint16
+
+0 km to 100,000 km
+
+Remaining time of pre-conditioning
+
+Remaining pre-conditioning runtime in seconds.
+
+vehicle​.cabin​.hvac​.preconditioning​.status​.remainingRunningTime
+
+uint32
+
+0 - 10000000
+
+s
+
+Arming status of the anti-theft alarm system
+
+Anti-theft alarm system. Arming status.
+
+vehicle​.vehicle​.antiTheftAlarmSystem​.alarm​.armStatus
+
+string
+
+unarmed, doorsOnly, doorsTiltCabin
+
+Seat heating passenger side third row
+
+Seat heating on the passenger side in the third row. 0 = off. +100 = maximum heating.
+
+vehicle​.cabin​.seat​.row3​.passengerSide​.heating
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat heating rear passenger side
+
+Seat heating on the rear passenger side. 0 = off. +100 = maximum heating.
+
+vehicle​.cabin​.seat​.row2​.passengerSide​.heating
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat heating front passenger side
+
+Heated front passenger seat. 0 = off. +100 = maximum heating.
+
+vehicle​.cabin​.seat​.row1​.passengerSide​.heating
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat heating driver's side third row
+
+Seat heating on the driver's side in the third row. 0 = off. +100 = maximum heating.
+
+vehicle​.cabin​.seat​.row3​.driverSide​.heating
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat heating driver's side rear
+
+Heated rear driver's seat. 0 = off. +100 = maximum heating.
+
+vehicle​.cabin​.seat​.row2​.driverSide​.heating
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat heating driver's side front
+
+Heated front driver's seat. 0 = off. +100 = maximum heating.
+
+vehicle​.cabin​.seat​.row1​.driverSide​.heating
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat cooling passenger side third row
+
+Seat cooling on the passenger side in the third row. 0 = off. +100 = maximum cooling.
+
+vehicle​.cabin​.seat​.row3​.passengerSide​.cooling
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat cooling rear passenger side
+
+Seat cooling on the rear passenger side. 0 = off. +100 = maximum cooling.
+
+vehicle​.cabin​.seat​.row2​.passengerSide​.cooling
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat cooling front passenger side
+
+Seat cooling on the front passenger side. 0 = off. +100 = maximum cooling.
+
+vehicle​.cabin​.seat​.row1​.passengerSide​.cooling
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat cooling driver's side third row
+
+Seat cooling on the driver's side in the third row. 0 = off. +100 = maximum cooling.
+
+vehicle​.cabin​.seat​.row3​.driverSide​.cooling
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat cooling driver's side rear
+
+Seat cooling on the rear driver's side. 0 = off. +100 = maximum cooling.
+
+vehicle​.cabin​.seat​.row2​.driverSide​.cooling
+
+uint8
+
+0% to 100%
+
+percent
+
+Seat cooling driver's side front
+
+Seat cooling on the front driver's side. 0 = off. +100 = maximum cooling.
+
+vehicle​.cabin​.seat​.row1​.driverSide​.cooling
+
+uint8
+
+0% to 100%
+
+percent
+
+Smart Maintenance: Digital Tire Diagnostics
+
+The value contains information about the vehicle's current and previously installed tire set. This data is determined by the vehicle and sent automatically at specified intervals. 
+
+vehicle​.chassis​.axle​.wheel​.tire​.diagnosis
+
+Details are in the corresponding Swagger documentation: ../smartMaintenanceTyreDiagnosis
+
+Smart Maintenance: Live diagnostics
+
+This value contains information about which service requirements have been identified for the vehicle based on live diagnostics. This information consists of the title, category, and current status of the service requirement. The vehicle collects error data for the service requirements and automatically sends it at specified intervals.
+
+vehicle​.serviceDemand​.defect​.id
+
+Target temperature for DirectStart
+
+DirectStart settings for the pre-conditioning setpoint temperature.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.directStartSettings​.targetTemperature
+
+float
+
+0 °C to 50 °C
+
+Celsius
+
+Target temperature
+
+Default settings of the target temperature for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.targetTemperature
+
+float
+
+0 °C to 50 °C
+
+Celsius
+
+Mirror heating active
+
+Current status of the mirror heating.
+
+vehicle​.cabin​.hvac​.preconditioning​.status​.isExteriorMirrorHeatingActive
+
+boolean
+
+true, false
+
+Standard for steering wheel heating
+
+Standard settings of the steering wheel heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.steeringWheel​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat heating passenger side third row
+
+Standard settings of the seat heating on the passenger side third row of seats for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row3​.passengerSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat heating on the rear passenger side
+
+Standard settings of the rear passenger seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row2​.passengerSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat heating on the front passenger side
+
+Standard settings of the front passenger seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row1​.passengerSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat heating driver's side third row
+
+Standard settings of the seat heating on the driver's side third row for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row3​.driverSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat heating driver's side rear
+
+Standard settings of the rear driver's seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row2​.driverSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat heating driver's side front
+
+Standard settings of the front driver's seat heating for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row1​.driverSide​.heating
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat cooling passenger side third row
+
+Standard settings for seat cooling/ventilation on the passenger side third row of seats for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row3​.passengerSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat cooling passenger side rear
+
+Standard settings for rear passenger seat cooling/ventilation for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row2​.passengerSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat cooling on the front passenger side
+
+Standard settings for seat cooling/ventilation on the front passenger side for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row1​.passengerSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat cooling driver side third row
+
+Standard settings for seat cooling/ventilation on the driver's side third row of seats for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row3​.driverSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat cooling driver's side rear
+
+Standard settings for rear driver's side seat cooling/ventilation for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row2​.driverSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Standard for seat cooling driver's side front
+
+Standard settings for seat cooling/ventilation on the driver's side front for pre-conditioning.
+
+vehicle​.cabin​.hvac​.preconditioning​.configuration​.defaultSettings​.seat​.row1​.driverSide​.cooling
+
+string
+
+OFF, ON, AUTOMATIC, NO_CHANGE
+
+Status of the open trunk door
+
+Condition of the trunk door.
+
+vehicle​.body​.trunk​.door​.isOpen
+
+boolean
+
+true, false
+
+HVAC air purification status
+
+Current status of air purification.
+
+vehicle​.cabin​.hvac​.statusAirPurification
+
+string
+
+UNFILTERED, PURIFYING_ONGOING, PURIFIED, INVALID
+
+Hood status
+
+The value indicates whether the hood was closed (CLOSED) or open (OPEN) at the time the data was collected.
+
+vehicle​.body​.hood​.isOpen
+
+boolean
+
+CLOSED, OPEN, INVALID
+
+Status of the rear left door
+
+The value indicates whether the rear left door was closed (CLOSED) or open (OPEN) at the time the data was collected.
+
+vehicle​.cabin​.door​.row2​.driver​.isOpen
+
+boolean
+
+OPEN, CLOSED, INVALID, UNKNOWN
+
+Status of the rear right door
+
+The value indicates whether the rear right door was closed (CLOSED) or open (OPEN) at the time the data was collected.
+
+vehicle​.cabin​.door​.row2​.passenger​.isOpen
+
+boolean
+
+OPEN, CLOSED, INVALID, UNKNOWN
+
+Status of the front left door
+
+The value indicates whether the left door was closed (CLOSED) or open (OPEN) at the time the data was collected.
+
+vehicle​.cabin​.door​.row1​.driver​.isOpen
+
+boolean
+
+OPEN, CLOSED, INVALID, UNKNOWN
+
+Status of the front right door
+
+The value indicates whether the right door was closed (CLOSED) or open (OPEN) at the time the data was collected.
+
+vehicle​.cabin​.door​.row1​.passenger​.isOpen
+
+boolean
+
+OPEN, CLOSED, INVALID, UNKNOWN
+
+Status of the doors
+
+Indicates whether the doors were locked (LOCKED) or unlocked (UNLOCKED) at the time of data collection. Other possible values ​​are: SELECTIVELOCKED = vehicle locked except for the left front door (results from the first execution of a Remote Service Door Unlock) SECURED = vehicle is secured = all doors locked and alarm system armed
+
+vehicle​.cabin​.door​.lock​.status
+
+SECURED, UNLOCKED, SELECTIVE-LOCKED, LOCKED, INVALID, UNKNOWN
+
+Trunk locking status
+
+Indicates whether the trunk is locked or not.
+
+vehicle​.body​.trunk​.isLocked
+
+boolean
+
+true, false
+
+Status of the convertible roof
+
+Indicates the current status of the convertible top at the time of data collection, i.e. whether it is closed (CLOSED), open (OPEN), or – in an emergency – locked (EMERGENCYLOCKED). The following additional status values ​​are possible: CLOSEDSECURED = Convertible top closed, vehicle secured OPENSECURED = Convertible top open, vehicle secured HARDTOPMOUNTED = Hardtop mounted and closed (removable hardtop) INTERMEDIATEPOSITION = Convertible top in intermediate position LOADINGPOSITION = Convertible top is in a position that facilitates loading the trunk LOADINGPOSITIONIMMEDIATE = Convertible top is in a position that facilitates loading the trunk
+
+vehicle​.cabin​.convertible​.roofStatus
+
+string
+
+CLOSED SECURED, OPENSECURED
+
+Status of the convertible roof
+
+Status of the retractable convertible roof. BMW Mini vehicles also have the option of opening only the folding roof. This signal represents the status of the Mini folding roof. It should be read together with the status of the convertible roof; see Vehicle.Cabin.Convertible.RoofStatus.
+
+vehicle​.cabin​.convertible​.roofRetractableStatus
+
+string
+
+None
+
+Rear left window status
+
+The value indicates whether the rear left window was open (OPEN), half open (INTERMEDIATE) or closed (CLOSED) at the time of data collection.
+
+vehicle​.cabin​.window​.row2​.driver​.status
+
+string
+
+CLOSED, INTERMEDIATE, OPEN, INVALID
+
+Rear right window status
+
+The value indicates whether the rear right window was open (OPEN), half open (INTERMEDIATE) or closed (CLOSED) at the time of data collection.
+
+vehicle​.cabin​.window​.row2​.passenger​.status
+
+string
+
+CLOSED, INTERMEDIATE, OPEN, INVALID
+
+Front left window status
+
+The value indicates whether the window of the left door was open (OPEN), half open (INTERMEDIATE) or closed (CLOSED) at the time of data collection.
+
+vehicle​.cabin​.window​.row1​.driver​.status
+
+string
+
+CLOSED, INTERMEDIATE, OPEN, INVALID
+
+Status of the front right window
+
+The value indicates whether the window of the right door was open (OPEN), half open (INTERMEDIATE) or closed (CLOSED) at the time of data collection.
+
+vehicle​.cabin​.window​.row1​.passenger​.status
+
+string
+
+CLOSED, INTERMEDIATE, OPEN, INVALID
+
+Status of the trunk lid
+
+The value indicates whether the trunk lid was open (OPEN), half open (INTERMEDIATE) or closed (CLOSED) at the time the data was collected.
+
+vehicle​.body​.trunk​.isOpen
+
+boolean
+
+CLOSED, OPEN, INVALID
+
+Sunroof status
+
+The value indicates whether the sunroof (if present) was open (OPEN), half open (INTERMEDIATE) or closed (CLOSED) at the time the data was collected.
+
+vehicle​.cabin​.sunroof​.status
+
+string
+
+CLOSED, INTERMEDIATE, OPEN, INVALID
+
+Status information about the last transmission of OBFCM* values 
+
+This value indicates the status information about the last transmission of OBFCM* values ​​performed in a workshop (i.e., wired). (OK for a valid transmission where the OBFCM values ​​were updated, ECU_COMMUNICATION_ERROR for errors collecting data from the control units, VEHICLE_MANIPULATION_DETECTED if vehicle manipulation was detected, and MANUFACTURER_EXCLUDED if the vehicle manufacturer is excluded from OBFCM* collection (e.g., Alpina, Toyota Supra).
+
+vehicle​.channel​.ista​.obfcm​.lastTransmissionStatus
+
+string
+
+OK, ECU_COMMUNICATION_ERROR, VEHICLE_MANIPULATION_DETECTED, MANUFACTURER_EXCLUDED
+
+Position of the rear passenger door
+
+Opening position of the rear passenger door in percent. 0% corresponds to fully closed, 100% corresponds to fully open.
+
+vehicle​.cabin​.door​.row2​.passenger​.position
+
+uint8
+
+0% to 100%
+
+percent
+
+Position of the front passenger door
+
+Opening position of the front passenger door in percent. 0% corresponds to fully closed, 100% corresponds to fully open.
+
+vehicle​.cabin​.door​.row1​.passenger​.position
+
+uint8
+
+0% to 100%
+
+percent
+
+Position of the rear driver's door
+
+Opening position of the rear door on the driver's side in percent. 0% corresponds to fully closed, 100% corresponds to fully open.
+
+vehicle​.cabin​.door​.row2​.driver​.position
+
+uint8
+
+0% to 100%
+
+percent
+
+Position of the front driver's door
+
+Opening position of the front door on the driver's side in percent. 0% corresponds to fully closed, 100% corresponds to fully open.
+
+vehicle​.cabin​.door​.row1​.driver​.position
+
+uint8
+
+0% to 100%
+
+percent
+
+Tank level in %
+
+The value indicates the tank content in percent at the time of data collection.
+
+vehicle​.drivetrain​.fuelSystem​.level
+
+uint8
+
+0-100%, INVALID
+
+%
+
+Tank capacity
+
+The value indicates the current tank content in liters at the time of data collection. Depending on the position of the tank float, deviations of up to 6 liters from the specified value may occur.
+
+vehicle​.drivetrain​.fuelSystem​.remainingFuel
+
+float
+
+0 l to 100 l
+
+
+Deep Sleep Mode
+
+This value indicates whether Deep Sleep Mode is enabled ("true") or disabled ("false") at the time of the query. If the customer has enabled Deep Sleep Mode, they can park their vehicle for extended periods without having to charge the battery. Most devices are disabled in this mode to save energy. The customer can exit Deep Sleep Mode by disabling it or by starting the vehicle.
+
+vehicle​.vehicle​.deepSleepModeActive
+
+boolean
+
+true, false
+
+Lower trunk door opened
+
+Condition of the lower trunk door.
+
+vehicle​.body​.trunk​.lower​.door​.isOpen
+
+boolean
+
+true, false
+
+Remaining duration of preconditioning
+
+The value indicates the remaining duration of the preconditioning of the parking air conditioning in minutes at the time of data collection. The value can also be transmitted if preconditioning is not booked or if the preconditioning status of the parking air conditioning is inactive at the time of data collection.
+
+vehicle​.vehicle​.preConditioning​.remainingTime
+
+uint8
+
+0-60 min, INVALID
+
+min
+
+Availability of teleservices
+
+The value indicates whether teleservices are available for this vehicle.
+
+vehicle​.channel​.teleservice​.status
+
+string
+
+PENDING, IDLE, SUCCESSFUL, ERROR
+
+Preconditioning status of the stationary air conditioning
+
+Current status of the preconditioning of the auxiliary climate control before starting the journey at the time of data collection. The value "Inactive" can be transmitted if preconditioning is not booked or if preconditioning is not active at the time of data collection.
+
+vehicle​.vehicle​.preConditioning​.activity
+
+string
+
+standby heating cooling ventilation inactive
+
+Time to navigation destination
+
+The value indicates the arrival time until the navigation destination is reached and is given in hours and minutes.
+
+vehicle​.cabin​.infotainment​.navigation​.destinationSet​.arrivalTime
+
+string
+
+hh:mm
+
+Time threshold for main and exhaust gas inspection
+
+The threshold value indicates how many months before the main inspection and emissions test is due a notification is issued to the service advisor.
+
+vehicle​.status​.serviceTime​.hUandAuServiceYellow
+
+uint16
+
+0 to 10 months
+
+months
+
+Time threshold for service information
+
+The specified static value is stored in the vehicle and indicates when the customer will first receive a time-based notification in the vehicle that a service is due soon. It is specified in weeks (for example, 4).
+
+vehicle​.status​.serviceTime​.yellow
+
+uint16
+
+4 weeks
+
+weeks
+
+Time of the last manual teleservice call
+
+The customer initiates a manual service call via the vehicle HMI (iDrive). Service-relevant data is transferred from the vehicle to the Teleservices backend system. A new Teleservice ticket is created and assigned to the customer's preferred service partner. The Teleservice ticket is transferred to the service partner's system for processing according to the respective business process.
+
+vehicle​.channel​.teleservice​.lastManualCallTime
+
+string
+
+None
+
+Time of the last Teleservice Breakdown Call
+
+Automatic Breakdown Call. In the event of a breakdown, the Breakdown Call allows the customer to contact a BMW Breakdown Assistance Call Center (RSA CC) employee, who can assist the driver in troubleshooting or towing the vehicle. The Breakdown Call allows the customer to contact a BMW Breakdown Assistance Call Center (RSA CC) employee in the event of a breakdown, who can assist the driver in troubleshooting or towing the vehicle. The service can be initiated via the vehicle's iDrive menu and is available in three levels depending on availability and market launch.
+
+vehicle​.channel​.teleservice​.lastBreakdownCallTime
+
+string
+
+None
+
+Time zone setting in the vehicle
+
+The value indicates the current setting for displaying the time in the vehicle at the time of data collection. This can be, for example, standard time, daylight saving time, UTC, or manual.
+
+vehicle​.vehicle​.timeSetting
+
+string
+
+wintertime summertime utc manual INVALID
+
+Condition of the lights
+
+The value indicates whether the vehicle lights are off or on at the time of data collection, or whether the status is unknown.
+
+vehicle​.body​.lights​.isRunningOn
+
+boolean
+
+ASN_isFalse, ASN_isTrue, ASN_isUnknown
+
+Condition of the doors
+
+This value indicates the status of the doors, but is only written and transmitted sporadically. Note: It is recommended to use only the individual door status instead of this value.
+
+vehicle​.cabin​.door​.status
+
+string
+
+oldDoorStatus: ASN_secured ASN_unlocked ASN_unknown ASN_selective-Locked newDoorStatus: ASN_locked ASN_unlocked ASN_selective-Locked ASN_unknown allDoorsLocked: ASN_isUnknown ASN_isTrue ASN_isFalse trunkLocked: ASN_isUnknown ASN_isTrue ASN_isFalse
+
+Ignition condition
+
+The value indicates whether the ignition was off or on at the time of data collection or whether the status is unknown.
+
+vehicle​.drivetrain​.engine​.isActive
+
+boolean
+
+ASN_isFalse, ASN_isTrue, ASN_isUnknown
+
+Engine status (on/off)
+
+The value indicates whether the engine was off or on at the time the data was collected, or whether the status is unknown.
+
+vehicle​.drivetrain​.engine​.isIgnitionOn
+
+boolean
+
+ASN_isFalse, ASN_isTrue, ASN_isUnknown
+
+Check Control Messages
+
+The value indicates the last relevant Check Control messages displayed in the vehicle and transmitted to BMW. Check Control monitors functions in the vehicle and reports any malfunctions in monitored systems. A Check Control message is displayed as a combination of indicator or warning lights and text messages in the instrument cluster and, if applicable, in the Head-Up Display. Note: Not all Check Control messages displayed in the vehicle are transmitted to BMW.
+
+vehicle​.status​.checkControlMessages
+
+The Check Control example is attached at the end of the table (2).
+
+Condition-Based Service
+
+Sensors and special algorithms take the vehicle's operating conditions into account. CBS uses these to determine maintenance requirements. The system thus allows the scope of maintenance to be adapted to the individual usage profile.
+
+vehicle​.status​.conditionBasedServices
+
+The Condition Based Service example is attached at the end of the table (3).
+
+Average distance per day
+
+Condition-Based Services. Estimation of the vehicle's daily distance traveled, heavily adapted for use in the context of Condition-Based Services.
+
+vehicle​.status​.conditionBasedServicesAverageDistancePerDay
+
+int32
+
+None
+
+km
+
+Average distance per week
+
+Indicates the average distance traveled in kilometers per week.
+
+vehicle​.vehicle​.averageWeeklyDistanceShortTerm
+
+float
+
+1 km to 3000 km
+
+Average distance per week (long-term)
+
+The value indicates the weekly average distance traveled in kilometers over a period of 2 months.
+
+vehicle​.vehicle​.averageWeeklyDistanceLongTerm
+
+float
+
+1 km to 3000 km
+
+Total fuel consumption according to legal OBFCM* requirements 
+
+This value indicates the amount of fuel consumed in liters, measured over the reference distance.
+
+vehicle​.drivetrain​.fuelSystem​.consumptionOverLifeTime​.overall​.fuel
+
+float
+
+0.00 l - 30000.00 l
+
+l
+
+Speed ​​range above
+
+Upper limit of the speed range in km/h. The range excludes the upper limit. For privacy reasons, some functions are not allowed to transmit the current driving speed and should use the SpeedRange attribute.
+
+vehicle​.vehicle​.speedRange​.upperBound
+
+int16
+
+-100 km/h - 500 km/h
+
+km/h
+
+Speed ​​range below
+
+Lower limit of the speed range in km/h. The range includes the lower limit. For privacy reasons, some functions are not allowed to transmit the current driving speed and should use the SpeedRange attribute.
+
+vehicle​.vehicle​.speedRange​.lowerBound
+
+int16
+
+-100 km/h - 500 km/h
+
+km/h
+
+Learning navigation
+
+Displays the learned navigation recommendations (customer's preferred routes and destinations).
+
+vehicle​.learningNavigation
+
+Details are in the corresponding Swagger documentation: ../learningNavigation
+
+OBFCM* total fuel consumption during charging (PHEV only)
+
+This value describes the fuel consumed during charging operation, i.e. PHEV charges the high-voltage battery via the combustion engine.
+
+vehicle​.drivetrain​.fuelSystem​.consumptionOverLifeTime​.inChargeIncreasing​.fuel
+
+float
+
+0.0 kWh to 30000.0 kWh
+
+l
+
+OBFCM* total operating fuel consumption with battery discharge (PHEV only)
+
+This value indicates the amount of fuel consumed when the combustion engine switches on even though the battery is not empty.
+
+vehicle​.drivetrain​.fuelSystem​.consumptionOverLifeTime​.inChargeDepleting​.fuel
+
+float
+
+0.00 l - 30000.00 l
+
+l
+
+OBFCM* reference distance for electric operation and active combustion engine (PHEV only)
+
+This value indicates the distance traveled when operating electrically and with the combustion engine active.
+
+vehicle​.drivetrain​.fuelSystem​.consumptionOverLifeTime​.inChargeDepleting​.referenceDistanceEngineOn
+
+float
+
+0.0 km to 250000.0 km
+
+km
+
+OBFCM* reference distance for electric operation and inactive combustion engine (PHEV only)
+
+This value indicates the distance traveled when operating electrically and the combustion engine is inactive.
+
+vehicle​.drivetrain​.fuelSystem​.consumptionOverLifeTime​.inChargeDepleting​.referenceDistanceEngineOff
+
+float
+
+0.0 km - 250000.0 km
+
+km
+
+OBFCM* reference distance for measuring fuel consumption
+
+This value indicates the reference distance for measuring fuel consumption.
+
+vehicle​.drivetrain​.fuelSystem​.consumptionOverLifeTime​.overall​.referenceDistance
+
+float
+
+0.0 km - 250000.0 km
+
+km
+
+OBFCM* reference route in charging mode
+
+This value indicates the distance traveled in charging mode, i.e. PHEV is charging the high-voltage battery.
+
+vehicle​.drivetrain​.fuelSystem​.consumptionOverLifeTime​.inChargeIncreasing​.referenceDistance
+
+float
+
+100,000 km
+
+km
+
+Last sent remaining range
+
+Last remaining range sent by the vehicle: Electric + Fuel. Range of vehicle Kombi (queried for PHEV and CE vehicles). Returns the electric range + CE range for PHEVs. CE range for CE vehicles. Probably 0 for BEV vehicles. This value should only be used for vehicles with combustion engines. For electric vehicles, Vehicle.Drivetrain.ElectricEngine.KombiRemainingElectricRange should be displayed.
+
+vehicle​.drivetrain​.lastRemainingRange
+
+float
+
+0-6500
+
+km
+
+Consent to OBFCM* data transfer to the EU
+
+This value indicates whether the customer has consented to the transfer of OBFCM* data to the EU Commission.
+
+vehicle​.privacySettings​.dataCollection​.regulations​.obfcm
+
+boolean
+
+True False
+
+Automatic Teleservice Call
+
+The value contains the information at which time an Automatic Service Call (ASC) was triggered by the vehicle.
+
+vehicle​.channel​.teleservice​.lastAutomaticServiceCallTime
+
+string
+
+dd.mm.yyyy hh:mm UTC
+
+Teleservice Report
+
+The value contains information about the time at which the Teleservice Report Call was triggered in the vehicle. The vehicle collects measured values ​​or error data for the Teleservice Report Call and sends them automatically at specified intervals.
+
+vehicle​.channel​.teleservice​.lastTeleserviceReportTime
+
+string
+
+dd.mm.yyyy hh:mm:ss UTC
+
+"Smart Charging" charging option
+
+The value indicates which "Smart Charging" charging option is used.
+
+vehicle​.powertrain​.electric​.battery​.charging​.preferenceSmartCharging
+
+string
+
+PRICE_OPTIMIZED, RENEWABLE_ENERGEY, CO2_OPTIMIZED, INVALID
+
+Departure time relevant
+
+Information about whether the upcoming departure time is relevant for the professional mode (bidirectional/unidirectional) and whether the target energy state must be reached at that time.
+
+vehicle​.drivetrain​.electricEngine​.charging​.profile​.settings​.biDirectionalCharging​.departureTimeRelevant
+
+boolean
+
+true, false
+
+Deviation from charging mode
+
+This parameter contains information about system-related deviations from the charging mode selected by the customer.
+
+vehicle​.drivetrain​.electricEngine​.charging​.modeDeviation
+
+string
+
+NO_DEVIATION, DC_DYNAMIC_MALIBU, DC_DYNAMIC_MIN_SOE_PROTECTION, IMMEDIATE_CHARGING_NOT_SUPPORTED_BY_EVSE, IMMEDIATE_CHARGING_WAKE_UP_LIMIT_REACHED, IMMEDIATE_CHARGING, CHARGING_TIMESLOT, CHARGING_IN_TIMESLOT, SMART_CHARGING, DC_DYNAMIC, BIDIRECTIONAL_CHARGING, NO_ACTION, UNKNOWN
+
+AC charging voltage
+
+This value indicates the charging voltage of the last charging process in volts (only when charging with alternating current). Typically, the value settles around 230 V. However, charging voltages from 0 to 300 V can occur.
+
+vehicle​.drivetrain​.electricEngine​.charging​.acVoltage
+
+float
+
+0 V to 300 V or -NA-
+
+V
+
+AC charging current
+
+This value indicates the maximum charging current of the last charging session in amperes (A) (only when charging with alternating current). Possible values ​​are between 0 and 25. Both the vehicle and the charging station can individually charge with a specific maximum charging current. The value displayed here is the larger of these two numbers.
+
+vehicle​.drivetrain​.electricEngine​.charging​.acAmpere
+
+uint8
+
+0 A to 25 A or -NA-
+
+A
+
+AC charging current limitation and selection
+
+The first value indicates whether the charging current used to charge the vehicle is limited. The second value describes the type of limitation (reduced or minimal).
+
+vehicle​.drivetrain​.electricEngine​.charging​.acRestriction​.isChosen
+
+boolean
+
+NOTCHOSEN, CHOSEN, INVALID; MAXCHARGING, REDUCEDCHARGING, MINCHARGING, INVALID
+
+ECO mode activation duration of the last trip
+
+Indicates how long ECO mode was activated during the last trip at the time of data collection. The value ranges from 0 to 100.
+
+vehicle​.trip​.segment​.accumulated​.drivetrain​.transmission​.setting​.fractionDriveEcoPro
+
+float
+
+0% to 100%
+
+percent
+
+Activation duration of ECO PLUS mode of the last trip
+
+This value indicates how long ECO PLUS mode was activated during the last trip at the time of data collection. The value ranges from 0 to 100.
+
+vehicle​.trip​.segment​.accumulated​.drivetrain​.transmission​.setting​.fractionDriveEcoProPlus
+
+float
+
+0% to 100%
+
+percent
+
+Current predicted state of charge
+
+This value indicates the current predicted state of charge in percent.
+
+vehicle​.drivetrain​.electricEngine​.charging​.level
+
+float
+
+0% to 100%
+
+%
+
+Acoustic limitation of the charging process
+
+The value indicates whether charging is limited due to noise emissions or not.
+
+vehicle​.powertrain​.electric​.battery​.charging​.acousticLimit
+
+string
+
+NO_ACTION, AUTOMATIC, UNLIMITED, LIMITED
+
+Display of departure time
+
+The value indicates whether the departure time is displayed in the vehicle.
+
+vehicle​.powertrain​.electric​.departureTime​.displayControl
+
+string
+
+DONT_DISPLAY, DISPLAY_DEPARTURE_TIME, DISPLAY_DEPARTURE_TIME_WITH_V2XSOE, UNKNOWN
+
+Display of charging time
+
+The value indicates whether the charging time is displayed in the vehicle.
+
+vehicle​.powertrain​.electric​.chargingDuration​.displayControl
+
+string
+
+NO_DISPLAY_TIME_FOR_CHARGING, DISPLAY_CHARGING_DURATION, NO_DISPLAY_CHARGING_DURATION, INVALID
+
+Selecting the most favorable charging window (Charging Window Selection)
+
+Specifies a predefined time window during which the vehicle's high-voltage battery should be charged. Possible values ​​are NOTCHOSEN and CHOSEN.
+
+vehicle​.drivetrain​.electricEngine​.charging​.windowSelection
+
+string
+
+CHOSEN, NOTCHOSEN, -NA-
+
+Automatic feedback on the status of preconditioning
+
+Current state of the toggle switch for automatic battery preconditioning. ON means that the automatic (navigation-based) mode of predictive thermal management (vWM) is activated. OFF means that the automatic (navigation-based) mode of predictive thermal management (vWM) is deactivated. TEMP\_OFF temporarily deactivates the automatic predictive thermal management (vWM) for the current trip.
+
+vehicle​.powertrain​.electric​.battery​.preconditioning​.automaticMode​.statusFeedback
+
+string
+
+OFF, ON, TEMP_OFF, UNKNOWN
+
+Battery charging port connected at any position
+
+This signal indicates whether a charging cable is connected to the charging port.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.anyPosition​.isPlugged
+
+boolean
+
+true, false
+
+Battery charging port at any position, flap opens/closes automatically
+
+This field indicates whether the customer setting for opening the tailgate via the MyWay function (slider in the mobile app) is active. If so, the tailgate opens automatically when the vehicle is near a charging station with the Digital Key in the pocket and closes automatically after the cable is removed.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.anyPosition​.flap​.isAutomaticOpenAndCloseActive
+
+boolean
+
+true, false
+
+Battery charging port at any position, flap open
+
+This signal indicates whether the charging port in the vehicle is open.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.anyPosition​.flap​.isOpen
+
+boolean
+
+true, false
+
+Battery charging port connected rear left
+
+This signal indicates whether a charging cable is connected to the charging port on the rear left.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearLeft​.isPlugged
+
+boolean
+
+true, false
+
+Battery charging port rear left, flap opens/closes automatically
+
+This field indicates whether the customer setting for opening the rear left hatch via the MyWay function (slider in the mobile app) is active. If so, the hatch opens automatically when the vehicle is near a charging station with the Digital Key in the pocket and closes automatically after the cable is disconnected.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearLeft​.flap​.isAutomaticOpenAndCloseActive
+
+boolean
+
+true, false
+
+Battery charging port rear left, flap open
+
+This signal indicates whether the charging port at the rear left of the vehicle is open.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearLeft​.flap​.isOpen
+
+boolean
+
+true, false
+
+Battery charging port connected rear center
+
+This signal indicates whether a charging cable is connected to the charging port at the rear center.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearMiddle​.isPlugged
+
+boolean
+
+true, false
+
+Battery charging port rear center, flap opens/closes automatically
+
+This field indicates whether the customer setting for opening the rear center hatch via the MyWay function (slider in the mobile app) is active. If enabled, the hatch opens automatically when the vehicle is near a charging station with the Digital Key in the pocket and closes automatically after the cable is removed.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearMiddle​.flap​.isAutomaticOpenAndCloseActive
+
+boolean
+
+true, false
+
+Battery charging port rear center, flap open
+
+This signal indicates whether the charging port at the rear center of the vehicle is open.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearMiddle​.flap​.isOpen
+
+boolean
+
+true, false
+
+Battery charging port connected at the rear right
+
+This signal indicates whether a charging cable is connected to the charging port on the rear right.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearRight​.isPlugged
+
+boolean
+
+true, false
+
+Battery charging port rear right, flap opens/closes automatically
+
+This field indicates whether the customer setting for opening the rear right hatch via the MyWay function (slider in the mobile app) is active. If so, the hatch opens automatically when the vehicle is near a charging station with the Digital Key in the pocket and closes automatically after the cable is removed.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearRight​.flap​.isAutomaticOpenAndCloseActive
+
+boolean
+
+true, false
+
+Battery charging port rear right, flap open
+
+This signal indicates whether the charging port at the rear right of the vehicle is open.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.rearRight​.flap​.isOpen
+
+boolean
+
+true, false
+
+Battery charging port connected front left
+
+This signal indicates whether a charging cable is connected to the front left charging port.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontLeft​.isPlugged
+
+boolean
+
+true, false
+
+Battery charging port front left, flap opens/closes automatically
+
+This field indicates whether the customer setting for opening the front left hatch via the MyWay function (slider in the mobile app) is active. If so, the hatch opens automatically when the vehicle is near a charging station with the Digital Key in the pocket and closes automatically after the cable is removed.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontLeft​.flap​.isAutomaticOpenAndCloseActive
+
+boolean
+
+true, false
+
+Battery charging port front left, flap open
+
+This signal indicates whether the charging port on the front left of the vehicle is open.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontLeft​.flap​.isOpen
+
+boolean
+
+true, false
+
+Battery charging port connected front center
+
+This signal indicates whether a charging cable is connected to the charging port in the front center.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontMiddle​.isPlugged
+
+boolean
+
+true, false
+
+Battery charging port front center, flap opens/closes automatically
+
+This field indicates whether the customer setting for opening the front center hatch via the MyWay function (slider in the mobile app) is active. If enabled, the hatch opens automatically when the vehicle is near a charging station with the Digital Key in the pocket and closes automatically after the cable is removed.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontMiddle​.flap​.isAutomaticOpenAndCloseActive
+
+boolean
+
+true, false
+
+Battery charging port front center, flap open
+
+This signal indicates whether the charging port at the front center of the vehicle is open.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontMiddle​.flap​.isOpen
+
+boolean
+
+true, false
+
+Battery charging port connected at the front right
+
+This signal indicates whether a charging cable is connected to the charging port on the front right.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontRight​.isPlugged
+
+boolean
+
+true, false
+
+Battery charging port front right, flap opens/closes automatically
+
+This field indicates whether the customer setting for opening the front right hatch via the MyWay function (slider in the mobile app) is active. If enabled, the hatch opens automatically when the vehicle is near a charging station with the Digital Key in the pocket and closes automatically after the cable is removed.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontRight​.flap​.isAutomaticOpenAndCloseActive
+
+boolean
+
+true, false
+
+Battery charging port front right, flap open
+
+This signal indicates whether the charging port on the front right of the vehicle is open.
+
+vehicle​.powertrain​.tractionBattery​.charging​.port​.frontRight​.flap​.isOpen
+
+boolean
+
+true, false
+
+Battery Care charging mode
+
+Charging until departure time starts as late as possible to minimize the time during which the vehicle has a high SoE (State of Energy).
+
+vehicle​.powertrain​.electric​.battery​.charging​.batteryCarePersisted​.isPreservingChargingMode
+
+boolean
+
+true, false
+
+Battery Care mode active
+
+Indicates whether Battery Care mode is permanently active.
+
+vehicle​.powertrain​.electric​.battery​.charging​.batteryCarePersisted​.isActive
+
+boolean
+
+true, false
+
+Limiting the charging current
+
+The value indicates the set limit of the charging current in amperes (A).
+
+vehicle​.powertrain​.electric​.battery​.charging​.acLimit​.selected
+
+uint8
+
+0-252 A, INVALID
+
+A
+
+Energy required for the complete residual charge of the high-voltage battery
+
+The value indicates the energy required to fully charge the high-voltage battery.
+
+vehicle​.drivetrain​.electricEngine​.charging​.smeEnergyDeltaFullyCharged
+
+float
+
+0 - 300 kWh, INVALID
+
+kWh
+
+Calculated remaining charging time of the high-voltage battery
+
+This value indicates the estimated time until the high-voltage battery is fully charged (in minutes). If a navigation destination is set, the remaining charging time until this destination is reached is displayed.
+
+vehicle​.drivetrain​.electricEngine​.charging​.timeToFullyCharged
+
+uint16
+
+0 – 65500 min, INVALID
+
+min
+
+Limiting factor for AC charging
+
+AC restriction feedback.
+
+vehicle​.drivetrain​.electricEngine​.charging​.acRestriction​.factor
+
+string
+
+MAXCHARGING, REDUCEDCHARGING, MINCHARGING
+
+Bidirectional charging capability
+
+Contains information about the current availability of the BPT (Bidirectional Power Transfer) function.
+
+vehicle​.powertrain​.electric​.battery​.biDirectionalCharging​.availability
+
+string
+
+AVAILABLE, NOT_AVAILABLE, DISABLED_MALIBU, DISABLED_HVS, BPT_AND_IMO_DISABLED, BPT_ONLY_FOR_EMERGENCY_POWER_SUPPLY, DISABLED_IMO_POSSIBLE, DISABLED_LONG_TERM
+
+DC charging mode active
+
+Active DC charging mode (Performance vs. Efficient).
+
+vehicle​.powertrain​.electric​.battery​.charging​.dcChargingModeActive
+
+string
+
+EFFICIENT, STANDARD, PERFORMANCE
+
+Average electrical consumption
+
+This value indicates the average electric consumption in [kWh/100 km] at the time of data collection. Note: Not available for the i3 and i8 models.
+
+vehicle​.drivetrain​.avgElectricRangeConsumption
+
+float
+
+0 kWh/100 km - 100 kWh/100 km
+
+Average speed
+
+The value indicates the average speed in km/h at the time the data was collected.
+
+vehicle​.vehicle​.avgSpeed
+
+uint16
+
+0-300 km/h, INVALID
+
+km/h
+
+Electric portion of the last journey
+
+The value indicates the proportion of the distance covered with electrical energy during the last recorded journey in percent.
+
+vehicle​.trip​.segment​.accumulated​.drivetrain​.transmission​.setting​.fractionDriveElectric
+
+float
+
+0% to 100%
+
+percent
+
+Energy content of the high-voltage battery
+
+The value indicates the current energy content of the high-voltage battery.
+
+vehicle​.drivetrain​.batteryManagement​.maxEnergy
+
+float
+
+0 - 300 kWh, INVALID
+
+kWh
+
+Unloading allowed
+
+Allowing discharge in professional mode for the bidirectional power transfer (BPT) function can be selected or not (ON/OFF) by the customer.
+
+vehicle​.drivetrain​.electricEngine​.charging​.profile​.settings​.biDirectionalCharging​.dischargeAllowed
+
+boolean
+
+true, false
+
+Result of last load
+
+Result of the last loading process.
+
+vehicle​.drivetrain​.electricEngine​.charging​.lastChargingResult
+
+string
+
+SUCCESS, FAILED, UNKNOWN
+
+Driving style assessment 'acceleration behavior'
+
+The value indicates the number of stars with which the driving style analysis rated the driver's acceleration behavior at the time of data collection. The system awards a rating from 0 to 5 stars.
+
+vehicle​.trip​.segment​.accumulated​.acceleration​.starsAverage
+
+float
+
+0 to 5 stars
+
+stars
+
+Driving style assessment 'Anticipatory driving'
+
+The value indicates the number of stars the driving style analysis assigned to 'Anticipatory Driving' at the time of data collection. The system awards this rating from 0 to 5 stars.
+
+vehicle​.trip​.segment​.accumulated​.chassis​.brake​.starsAverage
+
+float
+
+0 to 5 stars
+
+stars
+
+Total grid energy consumed while the combustion engine was active
+
+This value indicates the total energy supplied via charging cable while the combustion engine was active (used e.g. by OBFCM*).
+
+vehicle​.drivetrain​.electricEngine​.charging​.consumptionOverLifeTime​.engineOn​.gridEnergy
+
+float
+
+kWh
+
+kWh
+
+Total grid energy consumed while the combustion engine was not active
+
+This value indicates the total energy supplied via charging cable while the combustion engine was not active (used e.g. by OBFCM*).
+
+vehicle​.drivetrain​.electricEngine​.charging​.consumptionOverLifeTime​.engineOff​.gridEnergy
+
+float
+
+kWh
+
+kWh
+
+Total grid energy supplied to the vehicle (PHEV only)
+
+This value indicates the total energy supplied via the charging cable.
+
+vehicle​.drivetrain​.electricEngine​.charging​.consumptionOverLifeTime​.overall​.gridEnergy
+
+float
+
+0.0 kWh to 30000.0 kWh
+
+kWh
+
+High-voltage battery health status (SOCE)
+
+This value indicates the health status of the high-voltage battery (SOCE, State of Certified Energy).
+
+vehicle​.powertrain​.electric​.battery​.stateOfHealth​.displayed
+
+-
+
+Reason for the end of the store
+
+Reason for the end of charging from SP25.
+
+vehicle​.drivetrain​.electricEngine​.charging​.reasonChargingEnd
+
+string
+
+NO_CHARGING_END_SINCE_IPF_WAKEUP, CUSTOMER_INTERACTION_HMI_UNPLUG_CABLE_ONCE, CUSTOMER_INTERACTION_HMI_CHARGING_TARGET_REACHED, CUSTOMER_INTERACTION_APP_UNPLUG_CABLE_ONCE, CUSTOMER_INTERACTION_APP_CHARGING_TARGET_REACHED, CUSTOMER_INTERACTION_CHARGING_STOP_VIA_CHARGING_STOP_BUTTON_SOCKET, CUSTOMER_INTERACTION_AC_CHARGING_STOP_VIA_KEY, CUSTOMER_INTERACTION_AC_CHARGING_STOP_WALLBOX, CUSTOMER_INTERACTION_AC_CHARGING_STOP_LATCH, HV_BATTERY_FULLY_CHARGED, INFRASTRUCTURE_PHYSICAL_LIMITS_REACHED_TARGET_SOE_NOT_REACHABLE, INFRASTRUCTURE_DC_CCS_EVSE_SHUTDOWN, INFRASTRUCTURE_DC_GBT_CST_MESSAGE, INFRASTRUCTURE_DC_CCS_STATIC_PILOT, INFRASTRUCTURE_DC_CCS_COMMUNICATION_ERROR_FAILED_RESPONSE_CODE, INFRASTRUCTURE_DC_CCS_COMMUNICATION_ERROR, INFRASTRUCTURE_NO_ENERGY_TRANSFER, INFRASTRUCTURE_DC_CCS_PRECHARGE_ERROR, INFRASTRUCTURE_DC_CCS_EVSE_MALFUNCTION_EMERGENCY_SHUTDOWN, INFRASTRUCTURE_STATION_NOT_COMPATIBLE, INFRASTRUCTURE_CHARGE_READINESS_TIMEOUT, INFRASTRUCTURE_AC_MAXIMUM_GRID_ERROR_REACHED, INFRASTRUCTURE_DC_GBT_ISOLATION_ERROR_DETECTED, INFRASTRUCTURE_AUTHENTIFICATION_ERROR, VEHICLE_HV_BATTERY_ERROR, VEHICLE_HV_BATTERY_COMMUNICATION_ERROR, VEHICLE_DCDC_ERROR, VEHICLE_PLC_BOOTUP_ERROR, VEHICLE_HV_BATTERY_MAXIMAL_CURRENT_OVERSHOOT, VEHICLE_ISOLATION_ERROR, VEHICLE_MAXIMUM_TEMPERATURE_CHARGING_SOCKET_OVERSHOOT, VEHICLE_LT3_OVERSHOOT, VEHICLE_FUSI_CABLE_LOCK_ERROR, VEHICLE_PLC_COMMUNICATION_NOT_POSSIBLE, FLEXCHARGER_GRID_ERROR, FLEXCHARGER_GRID_TEMPERATURE_ERROR, FLEXCHARGER_EVSE_TEMPERATURE_ERROR, FLEXCHARGER_EVSE_INTERNAL_ERROR, FLEXCHARGER_AC_DC_FAULT_CURRENT, FLEXCHARGER_INCORRECT_REACTION_TIME_PWM, FLEXCHARGER_CHARGING_CURRENT_TOO_HIGH, FLEXCHARGER_PE_FAULT, INFRASTRUCTURE_INEFFICIENT_CHARGING_LOW_POWER, VEHICLE_CABLE_LOCKING_ERROR, VEHICLE_CONFIGURATION_ERROR_400V_800V, INFRASTRUCTURE_NO_AC_VOLTAGE, PLUG_AND_CHARGE_TLS_ERROR, PLUG_AND_CHARGE_CONTRACT_ERROR, SMART_CHARGING_TARIFF_SELECTION_INVALID, SMART_CHARGING_CHARGING_PROFILE_INVALID, CUSTOMER_INTERACTION_AC_CHARGING_STOP_VIA_APP, CHARGING_PAUSED, DISCHARGE_NOT_POSSIBLE_VOLTAGE_TOO_HIGH, DISCHARGE_NOT_POSSIBLE_SOE_TOO_LOW, DISCHARGE_NOT_POSSIBLE_INTERNAL_ERROR, DISCHARGE_NOT_POSSIBLE_INCOMPATIBLE_ADAPTER, DISCHARGE_NOT_POSSIBLE_INCOMPATIBLE_CONSUMER
+
+Reason last loading
+
+Reason for last loading.
+
+vehicle​.drivetrain​.electricEngine​.charging​.lastChargingReason
+
+string
+
+CHARGING_GOAL_REACHED, END_REQUESTED_BY_DRIVER, CONNECTOR_REMOVED, POWERGRID_FAILED, HV_SYSTEM_FAILURE, CHARGING_STATION_FAILURE, PARKING_LOCK_FAILED, NO_PARKING_LOCK, INVALID, -NA-
+
+ID of the charging port plug-in event
+
+A unique identifier that is incremented each time the customer plugs in the electrified vehicle (except when the time between unplugging and replugging is less than 90 seconds). This value should be unique for each charging session. See ElectricEngine.Charging.PlugStatus.
+
+vehicle​.body​.chargingPort​.plugEventId
+
+uint32
+
+0 - 131068
+
+48V battery integrity status
+
+SoH (State of Health) of the 48V battery, displayed to the customer. Designed to comply with the EU Battery Regulation.
+
+vehicle​.electricalSystem​.battery48V​.stateOfHealth​.displayed
+
+uint16
+
+0% to 250%
+
+percent
+
+Cable test voltage
+
+The voltage reached during the initial cable test.
+
+vehicle​.powertrain​.electric​.battery​.charging​.cableCheckVoltage
+
+uint16
+
+None
+
+V
+
+Mileage of the last trip
+
+The value indicates the total mileage after the last recorded trip.
+
+vehicle​.trip​.segment​.end​.traveledDistance
+
+float
+
+0 km to 999999 km
+
+Air conditioning active
+
+Vehicle air conditioning activation in the charging profile, the vehicle interior is pre-conditioned for the next departure time.
+
+vehicle​.drivetrain​.electricEngine​.charging​.profile​.climatizationActive
+
+boolean
+
+true, false
+
+Charging port connection status
+
+Current status of the charging connector in all charging modes, indicating whether a connector is currently connected. The value INVALID can have various causes, e.g., no sensor, defective sensor, no value, decoding error, etc. Combines Vehicle.Body.ChargingPort.Status/.DcStatus.
+
+vehicle​.body​.chargingPort​.combinedStatus
+
+string
+
+DISCONNECTED, CONNECTED, INVALID
+
+Charging mode
+
+Current charging mode.
+
+vehicle​.drivetrain​.electricEngine​.charging​.chargingMode
+
+string
+
+NORMAL_PROGNOSE_BASED, STEP_BASED, PLC_MODE
+
+Charging history
+
+The value displays a list of the vehicle's charging processes, which were recorded as part of the "Charging History" service.
+
+vehicle​.powertrain​.electric​.battery​.charging​.history​.sessionsList
+
+Details are in the corresponding Swagger documentation: ../chargingHistory
+
+Charging power
+
+The current charging power in watts. This value should only be considered in relation to the current timestamp.
+
+vehicle​.powertrain​.electric​.battery​.charging​.power
+
+int32
+
+20 W to 80 W
+
+W
+
+Charging method and plug type
+
+The value describes whether the vehicle was charged with direct current (DC) or alternating current (AC) and which charging plug was used. For example, the displayed technical value AC_TYPE1PLUG indicates that the high-voltage storage unit was charged in alternating current mode and a Type 1 plug charging plug was used.
+
+vehicle​.drivetrain​.electricEngine​.charging​.method
+
+string
+
+AC_TYPE1PLUG, AC_TYPE2PLUG, NOCHARGING
+
+Loading session ID
+
+This field contains the value of the ISO 15118 session ID in ASCII format.
+
+vehicle​.body​.chargingPort​.isoSessionId
+
+string
+
+None
+
+Charging status
+
+This value indicates the current charging status of the vehicle at the time of data collection. For example, the value "NOCHARGING" means that the vehicle's high-voltage battery is not currently being charged. "INITIALIZATION" means that the charging process is currently being prepared, and "CHARGINGACTIVE" means that the battery is currently being charged. Other possible values ​​are: CHARGINGPAUSED (charging paused), CHARGINGENDED (charging ended), and CHARGINGERROR (charging error).
+
+vehicle​.drivetrain​.electricEngine​.charging​.status
+
+string
+
+MANUAL_SELECTION, AUTOMATIC_SELECTION, AUTOMATIC_SELECTION_20, UNKNOWN
+
+Charging status of the high-voltage battery
+
+The value indicates the current charge status of the high-voltage battery in percent at the time of data collection.
+
+vehicle​.drivetrain​.batteryManagement​.header
+
+float
+
+0% to 100%
+
+percent
+
+Charging method of the high-voltage battery (inductive/conductive)
+
+The value indicates the charging method (CONDUCTIVE, INDUCTIVE) with which the vehicle is being charged at the time of data collection.
+
+vehicle​.drivetrain​.electricEngine​.charging​.connectionType
+
+string
+
+CONDUCTIVE, INDUCTIVE, SIGNAL_INVALID
+
+Charging process of the high-voltage battery (phases)
+
+The value indicates the number of phases with which the high-voltage battery is charged.
+
+vehicle​.drivetrain​.electricEngine​.charging​.phaseNumber
+
+string
+
+NO_CHARGING, 1-PHASES, 2-PHASES, 3-PHASES, INVALID
+
+Battery charge level
+
+The value indicates the charge level of the high-voltage battery at the end of the last recorded trip (in percent).
+
+vehicle​.trip​.segment​.end​.drivetrain​.batteryManagement​.hvSoc
+
+float
+
+0% to 100%
+
+percent
+
+Manual feedback on the status of preconditioning
+
+Current state of the button for manual battery preconditioning. Either for charging or for driving.
+
+vehicle​.powertrain​.electric​.battery​.preconditioning​.manualMode​.statusFeedback
+
+string
+
+OFF, ON_CHARGE, ON_DRIVE, UNKNOWN
+
+Maximum charging current
+
+The value indicates the maximum selectable charging current depending on the infrastructure and the cable used.
+
+vehicle​.powertrain​.electric​.battery​.charging​.acLimit​.max
+
+uint8
+
+0-250 A, INVALID
+
+A
+
+Minimum charging current
+
+The value indicates the minimum selectable charging current depending on the infrastructure and the cable used.
+
+vehicle​.powertrain​.electric​.battery​.charging​.acLimit​.min
+
+uint8
+
+0-250 A, INVALID
+
+A
+
+Minimum target charge level
+
+Minimum target state of charge requested by the customer for smart charging and V2X.
+
+vehicle​.powertrain​.electric​.battery​.stateOfCharge​.targetMin
+
+uint8
+
+0% to 100%
+
+percent
+
+Auxiliary power (power consumption of electrical components)
+
+This value indicates the auxiliary power consumption in kW at the time of data collection. This is the on-board electrical system consumption, including the power for the air conditioning system.
+
+vehicle​.vehicle​.avgAuxPower
+
+float
+
+0 – 655.34, INVALID
+
+kW
+
+OBFCM* reference distance for measuring the supplied grid energy
+
+This value indicates the reference distance for measuring the energy supplied via the charging cable.
+
+vehicle​.drivetrain​.electricEngine​.charging​.consumptionOverLifeTime​.overall​.referenceDistance
+
+float
+
+0.0 km to 250000.0 km
+
+km
+
+Preference for the charging profile
+
+Charging preference of the current charging profile. This value depends on the charging mode selection. If Vehicle.ElectricEngine.Charging.Profile.Mode is "DELAYED_CHARGING," Vehicle.ElectricEngine.Charging.Profile.Preference is either "SMART_CHARGING" or "CHARGING_WINDOW." If Vehicle.ElectricEngine.Charging.Profile.Mode is "IMMEDIATE_CHARGING," Vehicle.ElectricEngine.Charging.Profile.Preference is set to "NO_PRESELECTION."
+
+vehicle​.drivetrain​.electricEngine​.charging​.profile​.preference
+
+string
+
+CHARGING_WINDOW, SMART_CHARGING, NO_PRESELECTION
+
+Forecast of electric range during charging
+
+This value indicates the predicted electric range during the charging process.
+
+vehicle​.drivetrain​.electricEngine​.remainingElectricRange
+
+float
+
+0 - 1000 km
+
+km
+
+Forecast of the total range during the charging process
+
+This value indicates the total range predicted during the charging process (sum of electric and combustion engine range).
+
+vehicle​.drivetrain​.totalRemainingRange
+
+float
+
+0 - 2000 km
+
+km
+
+Forecast of remaining loading time
+
+This value indicates the predicted remaining charging time in minutes.
+
+vehicle​.drivetrain​.electricEngine​.charging​.timeRemaining
+
+uint16
+
+0 - 200 min
+
+min
+
+RCP configuration completed
+
+Vehicles with a full RCP (Remote Charging Profile) configuration explicitly send values ​​for all charging profile attributes. For vehicles without a full RCP configuration, default values ​​are applied.
+
+vehicle​.drivetrain​.electricEngine​.charging​.profile​.isRcpConfigComplete
+
+boolean
+
+true, false
+
+Reduced target for the State of Energy
+
+Reduces the target SoE (State of Energy) to a defined value so that the battery does not reach high SoE values ​​and thus reduces battery aging.
+
+vehicle​.powertrain​.electric​.battery​.charging​.batteryCarePersisted​.isReducedTargetSoe
+
+boolean
+
+true, false
+
+Reference distance for measuring the grid energy supplied while the combustion engine was active
+
+This value indicates the reference distance for measuring the energy supplied via charging cable while the combustion engine was active (used e.g. by OBFCM*).
+
+vehicle​.drivetrain​.electricEngine​.charging​.consumptionOverLifeTime​.engineOn​.referenceDistance
+
+float
+
+0.0 km to 250000.0 km
+
+km
+
+Reference distance for measuring the grid energy supplied while the combustion engine was not active
+
+This value indicates the reference distance for measuring the energy supplied via charging cable while the combustion engine was not active (used e.g. by OBFCM*).
+
+vehicle​.drivetrain​.electricEngine​.charging​.consumptionOverLifeTime​.engineOff​.referenceDistance
+
+float
+
+0.0 km to 250000.0 km
+
+km
+
+Route-optimized charging status
+
+Displays the charging status in cases where the customer uses e-route charging for their trip. E-route charging sessions consist of two distinct phases. Route-optimized charging sessions temporarily override the customer's target charging level.
+
+vehicle​.drivetrain​.electricEngine​.charging​.routeOptimizedChargingStatus
+
+string
+
+ROUTE_OPTIMIZED_CHARGING_IN_PROGRESS, ROUTE_OPTIMIZED_SOC_TARGET_REACHED
+
+Closing state of the tailgate
+
+The value indicates whether the tailgate is locked independently of the central locking system at the time of data collection.
+
+vehicle​.body​.flap​.isPermanentlyUnlocked
+
+boolean
+
+NO_ACTION, FLAP_UNLOCKED, FLAP_LOCKED, INVALID
+
+Target charge level for professional mode
+
+Contains the target charge level to be used as the target value in professional mode. At least this target charge level will be reached by departure time.
+
+vehicle​.powertrain​.electric​.battery​.stateOfCharge​.targetSoCForProfessionalMode
+
+uint8
+
+0% to 100%
+
+percent
+
+Location-based charging settings
+
+The value displays a list of the vehicle's currently stored location-based charging settings, which were recorded as part of the "Location-based charging settings" service.
+
+vehicle​.powertrain​.electric​.battery​.charging​.settingsList
+
+Details are in the corresponding Swagger documentation: ../locationBasedChargingSettings
+
+Authentication status for loading
+
+Authorization status of the Plug & Charge function (automatic payment for charging services) of a charging session. "AUTHORIZATION_SUCCESSFUL" - Authentication with PlugAndCharge successful, "TRANSPORT_LAYER_ERROR" - TLS connection to the EVSE not possible, "HIGH_LEVEL_COMMUNICATION_ERROR" - Error in high-level communication with ISO15118, "CONTRACT_SERVICE_NOT_SUPPORTED_ERROR" - EVSE does not support authentication via PlugAndCharge, "AUTHORIZATION_TIMEOUT" - Authorization expired with an error, "AUTHORIZATION_TIMEOUT" - Authentication not completed after 120 s, "NVM_READ_CERTIFICATE_ERROR" - Certificates could not be read from the charging controller's memory, "CERTIFICATE_UPDATE_ERROR" - Updating the contract via Powerline failed, "XML_SECURITY_ERROR" - Schema validation error of the transferred data.
+
+vehicle​.drivetrain​.electricEngine​.charging​.authentication​.status
+
+string
+
+AUTHORIZATION_SUCCESSFUL, TRANSPORT_LAYER_ERROR, HIGH_LEVEL_COMMUNICATION_ERROR, CONTRACT_SERVICE_NOT_SUPPORTED_ERROR, AUTHORIZATION_ERROR, AUTHORIZATION_TIMEOUT, NVM_READ_CERTIFICATE_ERROR, CERTIFICATE_UPDATE_ERROR, XML_SECURITY_ERROR
+
+Authentication status for loading
+
+This field shows the status of authentication with the charging station.
+
+vehicle​.powertrain​.electric​.battery​.charging​.authenticationStatus
+
+string
+
+NOT_STARTED, STARTED_EIM, STARTED_PNC, STARTED_PLC_EIM, DONE_EIM, DONE_PLC_EIM, DONE_PNC, FAILED_PLC_EIM, FAILED_PNC, UNKNOWN
+
+Status of the charging limit
+
+The value indicates whether a charging current limitation was active at the time the data was collected.
+
+vehicle​.powertrain​.electric​.battery​.charging​.acLimit​.isActive
+
+boolean
+
+AC_LIMIT_INACTIVE, AC_LIMIT_ACTIVE, INVALID
+
+Status of the charging connector
+
+The value indicates whether the vehicle was connected to a charging plug (CONNECTED) or not (DISCONNECTED) at the time the data was collected.
+
+vehicle​.body​.chargingPort​.status
+
+string
+
+CONNECTED, DISCONNECTED, INVALID, -NA-
+
+Charging connector status (DC only)
+
+The value indicates whether the vehicle was connected to a DC charging plug (CONNECTED) or not (DISCONNECTED) at the time the data was collected.
+
+vehicle​.body​.chargingPort​.dcStatus
+
+string
+
+DISCONNECTED, CONNECTED, INVALID
+
+Status of the instant charging function
+
+The value indicates whether the instant charging feature is enabled or not.
+
+vehicle​.drivetrain​.electricEngine​.charging​.isSingleImmediateCharging
+
+boolean
+
+DIRECT_CHG_ONCE_NOT_ACTIVE, DIRECT_CHG_ONCE_ACTIVE, INVALID
+
+Status of the HV charging system
+
+High-voltage charging status.
+
+vehicle​.drivetrain​.electricEngine​.charging​.hvStatus
+
+string
+
+INVALID, CHARGING, ERROR, NOT_CHARGING, WAITING_FOR_CHARGING, FINISHED_FULLY_CHARGED, FINISHED_NOT_FULL
+
+Charging plug status
+
+Current status of the charging plug across all types (inductive, wired), operating modes (AC, DC) and service packs.
+
+vehicle​.drivetrain​.electricEngine​.charging​.connectorStatus
+
+string
+
+CONNECTED, DISCONNECTED, ERROR
+
+Charging port status text
+
+Required together with Vehicle.Body.ChargingPort.Status to ensure correct handling of charging sessions on G08 BEV vehicles (for details, please contact DE-3-E; correction in the vehicle expected by 2021-03)
+
+vehicle​.body​.chargingPort​.statusClearText
+
+string
+
+DISCONNECTED, CONNECTED
+
+System reason for instant charging
+
+This parameter contains the information that the charging mode selected by the customer has been overwritten for system reasons.
+
+vehicle​.drivetrain​.electricEngine​.charging​.isImmediateChargingSystemReason
+
+boolean
+
+true, false
+
+Type of charging timer
+
+Timer type of the charging profile (e.g. Weekdays or TwoTimesTimer)
+
+vehicle​.drivetrain​.electricEngine​.charging​.profile​.timerType
+
+string
+
+None
+
+Reason for termination of a charging process
+
+The value indicates the reason for terminating a charging process.
+
+vehicle​.drivetrain​.electricEngine​.charging​.hvpmFinishReason
+
+string
+
+UNKNOWN, CHARGING_GOAL_REACHED, END_REQUESTED_BY_DRIVER, CONNECTOR_REMOVED, POWERGRID_FAILED, HV_SYSTEM_FAILURE, CHARGING_STATION_FAILURE, PARKING_LOCK_FAILED, NO_PARKING_LOCK, SIGNAL_INVALID, INVALID
+
+Remaining electric range depending on the target state of charge
+
+This value indicates the remaining electric range in kilometers at the time of data collection. This depends on the set target state of charge.
+
+vehicle​.powertrain​.electric​.range​.target
+
+float
+
+0-4000 KM or MI, INVALID
+
+km
+
+Remaining electric range in km
+
+The value indicates the remaining electric range in kilometers at the time of data collection.
+
+vehicle​.drivetrain​.electricEngine​.kombiRemainingElectricRange
+
+float
+
+0-4000 km, INVALID
+
+Consumption of electrical energy in COMFORT mode of the last trip
+
+Indicates the electrical energy consumption (kWh) measured in COMFORT mode at the time of data collection.
+
+vehicle​.trip​.segment​.accumulated​.drivetrain​.electricEngine​.energyConsumptionComfort
+
+double
+
+0 kWh to 10 kWh
+
+kWh
+
+Locking state of the charging port
+
+This signal indicates whether the charging connector is locked, unlocked, an error was sent, or no action was taken. When using this value, see also Vehicle.Body.ChargingPort.PlugStatus.
+
+vehicle​.body​.chargingPort​.lockedStatus
+
+string
+
+CHARGING_CABLE_NOT_LOCKED, CHARGING_CABLE_LOCKED, CHARGING_CABLE_LOCKING_ERROR_DETECTED, UNKNOWN
+
+Locking state of the charging plug after full charging
+
+The value indicates whether the charging plug is automatically unlocked after full charging (HOSPITALITY_ACTIVE) or remains locked (HOSPITALITY_INACTIVE).
+
+vehicle​.body​.chargingPort​.isHospitalityActive
+
+boolean
+
+HOSPITALITY_INACTIVE, HOSPITALITY_ACTIVE, INVALID
+
+Time of last trip
+
+The timestamp contains the date and local time of the last recorded and transmitted trip, for example, 15.05.2017 15:51:00 UTC.
+
+vehicle​.trip​.segment​.end​.time
+
+int32
+
+dd.mm.yyyy hh:mm:ss UTC
+
+Target value of the high-voltage battery state of charge
+
+This value indicates the set target charge level of the high-voltage battery in percent. This is displayed in 10% increments.
+
+vehicle​.powertrain​.electric​.battery​.stateOfCharge​.target
+
+uint8
+
+0-100 [10% steps], INVALID
+
+%
+
+Amount of energy recovered from the last trip
+
+This value indicates the average electrical energy recovered per 100 kilometers in kilowatt hours (kWh/100 km) during the last recorded trip. The range is from 0 to 254.
+
+vehicle​.trip​.segment​.accumulated​.drivetrain​.electricEngine​.recuperationTotal
+
+float
+
+0 kWh/100 km to 170 kWh/100 km
+
+Condition of the tailgate
+
+The value indicates whether the tailgate is locked at the time of data collection.
+
+vehicle​.body​.flap​.isLocked
+
+boolean
+
+FLAP_UNLOCKED, FLAP_LOCKED, INVALID
+
+State of preconditioning
+
+Status of the battery preconditioning activity. A legacy value valid only for the SP2021plus legacy project.
+
+vehicle​.powertrain​.electric​.battery​.preconditioning​.state
+
+string
+
+OFF, ON_LEGACY, MANUAL_ON_CHARGE, AUTOMATIC_ON, REMOTE_ON_CHARGE, REMOTE_ON_DRIVE, REMOTE_OFF, UNKNOWN
+
+Action for overwriting the automatic climate control
+
+Status/action of the automatic timer with the states Activate (On), Deactivate (Off) and NoAction (only used when transmitting the automatic timer to the vehicle).
+
+vehicle​.cabin​.climate​.timers​.overwriteTimer​.action
+
+string
+
+ACTIVATE, DEACTIVATE, NO_ACTION
+
+Action for timer 1 on weekdays
+
+Status/action of the timer 1 with the states Activate (On), Deactivate (Off) and NoAction (only used when transmitting the timer 1 to the vehicle).
+
+vehicle​.cabin​.climate​.timers​.weekdaysTimer1​.action
+
+string
+
+ACTIVATE, DEACTIVATE, NO_ACTION
+
+Action for timer 2 on weekdays
+
+Status/action of the timer 2 with the states Activate (On), Deactivate (Off) and NoAction (only used when transmitting the timer 2 to the vehicle).
+
+vehicle​.cabin​.climate​.timers​.weekdaysTimer2​.action
+
+string
+
+ACTIVATE, DEACTIVATE, NO_ACTION
+
+Number of navigation satellites
+
+Number of GPS satellites used for positioning; affects the reliability of positioning.
+
+vehicle​.cabin​.infotainment​.navigation​.currentLocation​.numberOfSatellites
+
+uint8
+
+None
+
+Minute for overwriting the automatic climate control
+
+Minute setting of the automatic climate control according to the time zone configured in the vehicle.
+
+vehicle​.cabin​.climate​.timers​.overwriteTimer​.minute
+
+uint8
+
+0 - 59
+
+min
+
+Minute for automatic timer 1 on weekdays
+
+Minute setting of the automatic climate control 1 according to the time zone configured in the vehicle.
+
+vehicle​.cabin​.climate​.timers​.weekdaysTimer1​.minute
+
+uint8
+
+0 - 59
+
+min
+
+Minute for automatic timer 2 on weekdays
+
+Minute setting of the automatic climate control 2 according to the time zone configured in the vehicle.
+
+vehicle​.cabin​.climate​.timers​.weekdaysTimer2​.minute
+
+uint8
+
+0 - 59
+
+min
+
+Navigation fixation status
+
+GPS fix status. "NO_FIX" means fewer than three satellites were found. "2D_GPS_FIX" is displayed when at least three satellites were found. "3D_GPS_FIX" is displayed when at least four satellites were found.
+
+vehicle​.cabin​.infotainment​.navigation​.currentLocation​.fixStatus
+
+string
+
+NO_FIX, GPS_FIX_2D, GPS_FIX_3D
+
+Control of the electric range display
+
+Indicates whether and how the electric range should be displayed in the vehicle.
+
+vehicle​.powertrain​.electric​.range​.displayControl
+
+string
+
+None
+
+Hour for overriding the automatic climate control
+
+Hour setting of the automatic climate control according to the time zone configured in the vehicle.
+
+vehicle​.cabin​.climate​.timers​.overwriteTimer​.hour
+
+uint8
+
+0 - 23
+
+h
+
+Hour for automatic timer 1 on weekdays
+
+Hour setting of the automatic climate control 1 according to the time zone configured in the vehicle.
+
+vehicle​.cabin​.climate​.timers​.weekdaysTimer1​.hour
+
+uint8
+
+0 - 23
+
+h
+
+Hour for automatic timer 2 on weekdays
+
+Hour setting of the automatic climate control 2 according to the time zone configured in the vehicle.
+
+vehicle​.cabin​.climate​.timers​.weekdaysTimer2​.hour
+
+uint8
+
+0 - 23
+
+h
+
+Distance unit in infotainment
+
+Distance unit used in the current HMI
+
+vehicle​.cabin​.infotainment​.hmi​.distanceUnit
+
+string
+
+MILES, KILOMETERS
+
+Measured tire pressure rear left
+
+The value indicates the measured tire pressure at the rear left in kPa.
+
+vehicle​.chassis​.axle​.row2​.wheel​.left​.tire​.pressure
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Measured tire pressure rear right
+
+The value indicates the measured tire pressure at the rear right in kPa.
+
+vehicle​.chassis​.axle​.row2​.wheel​.right​.tire​.pressure
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Measured tire pressure front left
+
+This value indicates the measured tire pressure front left in kPa
+
+vehicle​.chassis​.axle​.row1​.wheel​.left​.tire​.pressure
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Measured tire pressure front right
+
+The value indicates the measured tire pressure on the front right in kPa.
+
+vehicle​.chassis​.axle​.row1​.wheel​.right​.tire​.pressure
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Tire pressure rear left
+
+This value indicates the target tire pressure at the rear left in kPa.
+
+vehicle​.chassis​.axle​.row2​.wheel​.left​.tire​.pressureTarget
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Tire pressure rear right
+
+This value indicates the target tire pressure at the rear right in kPa.
+
+vehicle​.chassis​.axle​.row2​.wheel​.right​.tire​.pressureTarget
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Tire pressure front left
+
+This value indicates the target tire pressure on the front left in kPa.
+
+vehicle​.chassis​.axle​.row1​.wheel​.left​.tire​.pressureTarget
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Tire pressure front right
+
+This value indicates the target tire pressure on the front right in kPa.
+
+vehicle​.chassis​.axle​.row1​.wheel​.right​.tire​.pressureTarget
+
+uint16
+
+0-1000 kPa or -NA-
+
+kPa
+
+Tire temperature in Celsius, rear left
+
+Tire temperature in Celsius rear left.
+
+vehicle​.chassis​.axle​.row2​.wheel​.left​.tire​.temperature
+
+float
+
+0 °C to 50 °C
+
+Celsius
+
+Tire temperature in Celsius, rear right
+
+Tire temperature in Celsius rear right.
+
+vehicle​.chassis​.axle​.row2​.wheel​.right​.tire​.temperature
+
+float
+
+0 °C to 50 °C
+
+Celsius
+
+Tire temperature in Celsius, front left
+
+Tire temperature in Celsius front left.
+
+vehicle​.chassis​.axle​.row1​.wheel​.left​.tire​.temperature
+
+float
+
+0 °C to 50 °C
+
+Celsius
+
+Tire temperature in Celsius, front right
+
+Tire temperature in Celsius front right.
+
+vehicle​.chassis​.axle​.row1​.wheel​.right​.tire​.temperature
+
+float
+
+0 °C to 50 °C
+
+Celsius
+
+Active ConnectedDrive contracts
+
+The value contains an overview of all active ConnectedDrive contracts and the end of the respective contract term.
+
+vehicle​.vehicleIdentification​.connectedDriveContractList
+
+yyyy-mm-dd hh:mm:ss UTC

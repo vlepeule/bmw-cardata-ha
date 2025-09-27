@@ -1,0 +1,10 @@
+# BMW tokens
+/tokens.json
+/auth_seed.json
+/streaming_scopes.txt
+/streaming_scopes_prefixed.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

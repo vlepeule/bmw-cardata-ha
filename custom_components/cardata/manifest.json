@@ -1,0 +1,12 @@
+{
+  "domain": "cardata",
+  "name": "BMW CarData",
+  "codeowners": ["@jjyks"],
+  "config_flow": true,
+  "documentation": "https://github.com/jjyks/bmw-cardata-homeassistant",
+  "iot_class": "cloud_push",
+  "requirements": [
+    "paho-mqtt==2.1.0"
+  ],
+  "version": "0.1.0"
+}
