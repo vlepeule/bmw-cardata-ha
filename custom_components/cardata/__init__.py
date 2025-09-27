@@ -17,7 +17,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 
 from homeassistant.components import persistent_notification
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import (
     DEFAULT_SCOPE,
@@ -263,10 +263,11 @@ async def _async_register_services(hass: HomeAssistant) -> None:
         except CardataAuthError as err:
             raise HomeAssistantError(f"Token refresh failed: {err}") from err
 
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_REFRESH_TOKENS,
         _async_handle_refresh,
-        schema=cv.Schema({cv.Optional("entry_id"): cv.string}),
+        schema={"entry_id": str},
     )
     domain_data[SERVICES_REGISTERED] = True
