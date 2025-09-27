@@ -8,6 +8,8 @@ Turn your BMW CarData stream into native Home Assistant entities. This integrati
 
 > **Note:** This entire plugin was generated with the assistance of AI to quickly solve issues with the legacy implementation. The code is intentionally open—modify, fork, or build a new integration from it. PRs are welcome unless otherwise noted in the future.
 
+> **Tested Environment:** The integration has only been verified on my own Home Assistant instance (2024.12.5). Newer releases might require adjustments.
+
 ## Features
 
 - Device Code / PKCE auth flow
