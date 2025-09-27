@@ -16,6 +16,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from homeassistant.components import persistent_notification
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import config_validation as cv
 
 from .const import (
     DEFAULT_SCOPE,
@@ -32,6 +34,9 @@ from .coordinator import CardataCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[str] = ["sensor", "binary_sensor"]
+
+SERVICE_REFRESH_TOKENS = "refresh_tokens"
+SERVICES_REGISTERED = "_services_registered"
 
 
 @dataclass
@@ -93,6 +98,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         reauth_flow_id=None,
     )
 
+    await _async_register_services(hass)
+
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -108,6 +115,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await data.refresh_task
     await data.stream.async_stop()
     await data.session.close()
+    remaining_entries = [
+        key for key in hass.data[DOMAIN] if key not in (SERVICES_REGISTERED,)
+    ]
+    if not remaining_entries and hass.data[DOMAIN].get(SERVICES_REGISTERED):
+        hass.services.async_remove(DOMAIN, SERVICE_REFRESH_TOKENS)
+        hass.data[DOMAIN].pop(SERVICES_REGISTERED, None)
+    if not hass.data[DOMAIN]:
+        hass.data.pop(DOMAIN)
     return True
 
 
@@ -215,3 +230,43 @@ async def async_manual_refresh_tokens(hass: HomeAssistant, entry: ConfigEntry) -
     if runtime is None:
         raise CardataAuthError("Integration runtime not ready")
     await _refresh_tokens(entry, runtime.session, runtime.stream)
+
+
+async def _async_register_services(hass: HomeAssistant) -> None:
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    if domain_data.get(SERVICES_REGISTERED):
+        return
+
+    async def _async_handle_refresh(call) -> None:
+        target_entry_id = call.data.get("entry_id")
+        if target_entry_id:
+            entry = hass.config_entries.async_get_entry(target_entry_id)
+            if not entry or entry.domain != DOMAIN:
+                raise HomeAssistantError("Invalid entry_id provided")
+        else:
+            active_entries = [
+                hass.config_entries.async_get_entry(key)
+                for key, value in hass.data.get(DOMAIN, {}).items()
+                if key not in (SERVICES_REGISTERED,) and isinstance(value, CardataRuntimeData)
+            ]
+            active_entries = [entry for entry in active_entries if entry]
+            if not active_entries:
+                raise HomeAssistantError("No active BimmerData Streamline entries")
+            if len(active_entries) > 1:
+                raise HomeAssistantError(
+                    "Multiple BimmerData Streamline entries configured; specify entry_id"
+                )
+            entry = active_entries[0]
+
+        try:
+            await async_manual_refresh_tokens(hass, entry)
+        except CardataAuthError as err:
+            raise HomeAssistantError(f"Token refresh failed: {err}") from err
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH_TOKENS,
+        _async_handle_refresh,
+        schema=cv.Schema({cv.Optional("entry_id"): cv.string}),
+    )
+    domain_data[SERVICES_REGISTERED] = True
