@@ -65,7 +65,7 @@ class CardataStreamManager:
         self._message_callback = callback
 
     def _start_client(self) -> None:
-        client_id = f"ha{self._gcid.replace('-', '')[:20]}"
+        client_id = self._gcid
         client = mqtt.Client(
             client_id=client_id,
             clean_session=True,
