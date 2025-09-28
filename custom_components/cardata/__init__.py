@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from contextlib import suppress
@@ -10,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import aiohttp
+import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, SOURCE_REAUTH
 from homeassistant.core import HomeAssistant
@@ -50,7 +52,7 @@ class CardataRuntimeData:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    hass.data.setdefault(DOMAIN, {})
+    domain_data = hass.data.setdefault(DOMAIN, {})
 
     _LOGGER.debug("Setting up BimmerData Streamline entry %s", entry.entry_id)
 
@@ -66,6 +68,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
     container_manager: Optional[CardataContainerManager] = None
+    if not data.get("hv_container_id"):
+        container_manager = CardataContainerManager(
+            session=session,
+            entry_id=entry.entry_id,
+            initial_container_id=None,
+        )
 
     async def handle_stream_error(reason: str) -> None:
         await _handle_stream_error(hass, entry, reason)
@@ -123,18 +131,143 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _refresh_loop(hass, entry, session, manager, container_manager)
     )
 
+    stored_container_manager = None if entry.data.get("hv_container_id") else container_manager
+
     hass.data[DOMAIN][entry.entry_id] = CardataRuntimeData(
         stream=manager,
         refresh_task=refresh_task,
         session=session,
         coordinator=coordinator,
-        container_manager=container_manager,
+        container_manager=stored_container_manager,
         reauth_in_progress=False,
         reauth_flow_id=None,
     )
 
     await coordinator.async_handle_connection_event("connecting")
     await coordinator.async_start_watchdog()
+
+    if not domain_data.get("_service_registered"):
+
+        async def async_handle_fetch(call) -> None:
+            entries = {
+                key: value
+                for key, value in hass.data.get(DOMAIN, {}).items()
+                if not key.startswith("_")
+            }
+
+            target_entry_id = call.data.get("entry_id")
+            if target_entry_id:
+                runtime = entries.get(target_entry_id)
+                target_entry = hass.config_entries.async_get_entry(target_entry_id)
+                if runtime is None or target_entry is None:
+                    _LOGGER.error(
+                        "Cardata fetch_telematic_data: unknown entry_id %s",
+                        target_entry_id,
+                    )
+                    return
+            else:
+                if len(entries) != 1:
+                    _LOGGER.error(
+                        "Cardata fetch_telematic_data: multiple entries configured; specify entry_id"
+                    )
+                    return
+                target_entry_id, runtime = next(iter(entries.items()))
+                target_entry = hass.config_entries.async_get_entry(target_entry_id)
+                if target_entry is None:
+                    _LOGGER.error(
+                        "Cardata fetch_telematic_data: unable to resolve config entry %s",
+                        target_entry_id,
+                    )
+                    return
+
+            vin = call.data.get("vin") or target_entry.data.get("vin")
+            if not vin and runtime.coordinator.data:
+                vin = next(iter(runtime.coordinator.data))
+            if not vin:
+                _LOGGER.error(
+                    "Cardata fetch_telematic_data: no VIN available; provide vin parameter"
+                )
+                return
+
+            container_id = target_entry.data.get("hv_container_id")
+            if not container_id:
+                _LOGGER.error(
+                    "Cardata fetch_telematic_data: no container_id stored for entry %s",
+                    target_entry_id,
+                )
+                return
+
+            try:
+                await _refresh_tokens(
+                    target_entry,
+                    runtime.session,
+                    runtime.stream,
+                    runtime.container_manager,
+                )
+            except CardataAuthError as err:
+                _LOGGER.error(
+                    "Cardata fetch_telematic_data: token refresh failed for entry %s: %s",
+                    target_entry_id,
+                    err,
+                )
+                return
+
+            access_token = target_entry.data.get("access_token")
+            if not access_token:
+                _LOGGER.error(
+                    "Cardata fetch_telematic_data: access token missing after refresh"
+                )
+                return
+
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "x-version": API_VERSION,
+                "Accept": "application/json",
+            }
+            params = {"containerId": container_id}
+            url = f"{API_BASE_URL}/customers/vehicles/{vin}/telematicData"
+
+            try:
+                async with runtime.session.get(url, headers=headers, params=params) as response:
+                    text = await response.text()
+                    if response.status != 200:
+                        _LOGGER.error(
+                            "Cardata fetch_telematic_data: request failed (status=%s) for %s: %s",
+                            response.status,
+                            vin,
+                            text,
+                        )
+                        return
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        payload = text
+                    _LOGGER.info(
+                        "Cardata telematic data for %s: %s",
+                        vin,
+                        payload,
+                    )
+            except aiohttp.ClientError as err:
+                _LOGGER.error(
+                    "Cardata fetch_telematic_data: network error for %s: %s",
+                    vin,
+                    err,
+                )
+
+        service_schema = vol.Schema(
+            {
+                vol.Optional("entry_id"): str,
+                vol.Optional("vin"): str,
+            }
+        )
+
+        hass.services.async_register(
+            DOMAIN,
+            "fetch_telematic_data",
+            async_handle_fetch,
+            schema=service_schema,
+        )
+        domain_data["_service_registered"] = True
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -153,8 +286,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await data.refresh_task
     await data.stream.async_stop()
     await data.session.close()
-    if not domain_data:
-        hass.data.pop(DOMAIN)
+    remaining_entries = [k for k in domain_data.keys() if not k.startswith("_")]
+    if not remaining_entries:
+        if hass.services.has_service(DOMAIN, "fetch_telematic_data"):
+            hass.services.async_remove(DOMAIN, "fetch_telematic_data")
+        domain_data.pop("_service_registered", None)
+    if not domain_data or not remaining_entries:
+        hass.data.pop(DOMAIN, None)
     return True
 
 
@@ -319,6 +457,10 @@ async def _refresh_tokens(
         else:
             if container_id:
                 data["hv_container_id"] = container_id
+                runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+                if runtime:
+                    runtime.container_manager = None
+                container_manager = None
 
     hass.config_entries.async_update_entry(entry, data=data)
     await manager.async_update_credentials(
