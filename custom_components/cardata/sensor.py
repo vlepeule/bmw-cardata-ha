@@ -11,6 +11,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .coordinator import CardataCoordinator
@@ -56,7 +58,7 @@ class CardataSensor(CardataEntity, SensorEntity):
         self.schedule_update_ha_state()
 
 
-class CardataDiagnosticsSensor(SensorEntity):
+class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
     _attr_should_poll = False
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
@@ -74,6 +76,7 @@ class CardataDiagnosticsSensor(SensorEntity):
         self._unsub = None
         unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
         self._attr_unique_id = f"{entry_id}_diagnostics_{unique_suffix}"
+        self._attr_native_value = None
         if sensor_type == "last_message":
             self._attr_name = "Last Message Received"
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
@@ -101,6 +104,13 @@ class CardataDiagnosticsSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        if self._attr_native_value is None:
+            last_state = await self.async_get_last_state()
+            if last_state and last_state.state not in ("unknown", "unavailable"):
+                if self._sensor_type == "last_message":
+                    self._attr_native_value = dt_util.parse_datetime(last_state.state)
+                else:
+                    self._attr_native_value = last_state.state
         self._unsub = async_dispatcher_connect(
             self.hass,
             self._coordinator.signal_diagnostics,
@@ -114,15 +124,19 @@ class CardataDiagnosticsSensor(SensorEntity):
             self._unsub = None
 
     def _handle_update(self) -> None:
+        if self._sensor_type == "last_message":
+            value = self._coordinator.last_message_at
+            if value is not None:
+                self._attr_native_value = value
+        elif self._sensor_type == "connection_status":
+            value = self._coordinator.connection_status
+            if value is not None:
+                self._attr_native_value = value
         self.schedule_update_ha_state()
 
     @property
     def native_value(self):
-        if self._sensor_type == "last_message":
-            return self._coordinator.last_message_at
-        if self._sensor_type == "connection_status":
-            return self._coordinator.connection_status
-        return None
+        return self._attr_native_value
 
 
 async def async_setup_entry(
