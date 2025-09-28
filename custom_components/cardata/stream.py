@@ -202,6 +202,18 @@ class CardataStreamManager:
         if userdata is not None and isinstance(userdata, dict):
             userdata["reconnect"] = True
         if rc in (4, 5):
+            now = time.monotonic()
+            if (
+                rc == 5
+                and self._last_disconnect is not None
+                and now - self._last_disconnect < 10
+            ):
+                if DEBUG_LOG:
+                    _LOGGER.debug(
+                        "Ignoring transient MQTT rc=5; scheduling retry instead"
+                    )
+                self._schedule_retry(3)
+                return
             asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
             self._reconnect_backoff = min(self._reconnect_backoff * 2, self._max_backoff)
             if self._status_callback:
@@ -310,6 +322,8 @@ class CardataStreamManager:
     def _schedule_retry(self, delay: float) -> None:
         if self._retry_task is not None and not self._retry_task.done():
             return
+
+        self._last_disconnect = time.monotonic()
 
         async def _retry() -> None:
             try:
