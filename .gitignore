@@ -3,6 +3,7 @@
 /auth_seed.json
 /streaming_scopes.txt
 /streaming_scopes_prefixed.txt
+/device_seed.json
 
 # Python
 __pycache__/
