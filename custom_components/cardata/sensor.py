@@ -45,7 +45,7 @@ class CardataSensor(CardataEntity, SensorEntity):
                     self.vin,
                     self.descriptor,
                     self._attr_native_value,
-                    self._attr_native_unit_of_measurement,
+                    unit,
                     timestamp,
                 )
         self._unsubscribe = async_dispatcher_connect(
