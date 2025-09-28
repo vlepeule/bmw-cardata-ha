@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import ssl
+import time
 from typing import Awaitable, Callable, Optional
 
 import paho.mqtt.client as mqtt
@@ -50,6 +51,7 @@ class CardataStreamManager:
         ] = None
         self._reconnect_backoff = 5
         self._max_backoff = 300
+        self._last_disconnect: Optional[float] = None
 
     async def async_start(self) -> None:
         await self.hass.async_add_executor_job(self._start_client)
@@ -57,9 +59,15 @@ class CardataStreamManager:
 
     async def async_stop(self) -> None:
         if self._client:
-            self._client.loop_stop()
-            self._client.disconnect()
-            self._client = None
+            try:
+                self._client.disconnect()
+            except Exception as err:  # pragma: no cover - defensive logging
+                if DEBUG_LOG:
+                    _LOGGER.debug("Error disconnecting BMW MQTT client: %s", err)
+            finally:
+                self._client.loop_stop(force=True)
+                self._client = None
+                self._last_disconnect = time.monotonic()
 
     @property
     def client(self) -> Optional[mqtt.Client]:
@@ -78,7 +86,8 @@ class CardataStreamManager:
         client = mqtt.Client(
             client_id=client_id,
             clean_session=True,
-            userdata={"topic": f"{self._gcid}/+", "reconnect": False},
+            # Subscribe only to direct VIN topics. Do not modify unless API changes.
+            userdata={"topic": f"{self._gcid}/+"},
             protocol=mqtt.MQTTv311,
             transport="tcp",
         )
@@ -258,6 +267,14 @@ class CardataStreamManager:
         self._reconnect_backoff = 5
         if self._awaiting_new_credentials:
             self._awaiting_new_credentials = False
+
+        delay = 0.0
+        if self._last_disconnect is not None:
+            elapsed = time.monotonic() - self._last_disconnect
+            if elapsed < 2.0:
+                delay = 2.0 - elapsed
+        if delay > 0:
+            await asyncio.sleep(delay)
 
         try:
             await self.async_start()
