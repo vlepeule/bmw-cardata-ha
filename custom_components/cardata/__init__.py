@@ -44,6 +44,7 @@ class CardataRuntimeData:
     reauth_flow_id: str | None = None
     last_reauth_attempt: float = 0.0
     last_refresh_attempt: float = 0.0
+    reauth_pending: bool = False
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -133,7 +134,12 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
 
         now = time.time()
 
-        if now - runtime.last_refresh_attempt >= DIAGNOSTIC_LOG_INTERVAL:
+        if runtime.reauth_pending:
+            _LOGGER.debug(
+                "Reauth pending for entry %s after failed refresh; starting flow",
+                entry.entry_id,
+            )
+        elif now - runtime.last_refresh_attempt >= DIAGNOSTIC_LOG_INTERVAL:
             runtime.last_refresh_attempt = now
             try:
                 _LOGGER.info(
@@ -143,6 +149,7 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
                 await _refresh_tokens(entry, runtime.session, runtime.stream)
                 runtime.reauth_in_progress = False
                 runtime.last_reauth_attempt = 0.0
+                runtime.reauth_pending = False
                 return
             except CardataAuthError as err:
                 _LOGGER.warning(
@@ -150,6 +157,12 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
                     entry.entry_id,
                     err,
                 )
+        else:
+            runtime.reauth_pending = True
+            _LOGGER.debug(
+                "Token refresh attempted recently for entry %s; will trigger reauth",
+                entry.entry_id,
+            )
 
         if now - runtime.last_reauth_attempt < DIAGNOSTIC_LOG_INTERVAL:
             _LOGGER.debug(
@@ -160,6 +173,7 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
 
         runtime.reauth_in_progress = True
         runtime.last_reauth_attempt = now
+        runtime.reauth_pending = False
         _LOGGER.error("BMW stream unauthorized; starting reauth flow")
         if runtime.reauth_flow_id:
             with suppress(Exception):
@@ -187,6 +201,8 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
                 with suppress(Exception):
                     await hass.config_entries.flow.async_abort(runtime.reauth_flow_id)
                 runtime.reauth_flow_id = None
+        runtime.reauth_pending = False
+        runtime.last_reauth_attempt = 0.0
 
 
 async def _refresh_loop(
@@ -244,6 +260,9 @@ async def _refresh_tokens(
 
     hass.config_entries.async_update_entry(entry, data=data)
     await manager.async_update_token(new_id_token)
+    runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if runtime:
+        runtime.reauth_pending = False
 
 
 async def async_manual_refresh_tokens(hass: HomeAssistant, entry: ConfigEntry) -> None:
