@@ -139,7 +139,7 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
                 "Reauth pending for entry %s after failed refresh; starting flow",
                 entry.entry_id,
             )
-        elif now - runtime.last_refresh_attempt >= DIAGNOSTIC_LOG_INTERVAL:
+        elif now - runtime.last_refresh_attempt >= 30:
             runtime.last_refresh_attempt = now
             try:
                 _LOGGER.info(
@@ -164,7 +164,7 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
                 entry.entry_id,
             )
 
-        if now - runtime.last_reauth_attempt < DIAGNOSTIC_LOG_INTERVAL:
+        if now - runtime.last_reauth_attempt < 30:
             _LOGGER.debug(
                 "Recent reauth already attempted for entry %s; skipping new flow",
                 entry.entry_id,
