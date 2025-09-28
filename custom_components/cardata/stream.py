@@ -55,9 +55,20 @@ class CardataStreamManager:
         self._disconnect_future: Optional[asyncio.Future[None]] = None
         self._retry_backoff = 3
         self._retry_task: Optional[asyncio.Task] = None
+        self._min_reconnect_interval = 10.0
 
     async def async_start(self) -> None:
         self._disconnect_future = None
+        if self._last_disconnect is not None:
+            elapsed = time.monotonic() - self._last_disconnect
+            delay = self._min_reconnect_interval - elapsed
+            if delay > 0:
+                if DEBUG_LOG:
+                    _LOGGER.debug(
+                        "Waiting %.1fs before starting BMW MQTT client",
+                        delay,
+                    )
+                await asyncio.sleep(delay)
         await self.hass.async_add_executor_job(self._start_client)
         self._reconnect_backoff = 5
 
@@ -72,17 +83,21 @@ class CardataStreamManager:
             except Exception as err:  # pragma: no cover - defensive logging
                 if DEBUG_LOG:
                     _LOGGER.debug("Error disconnecting BMW MQTT client: %s", err)
-            finally:
-                self._client.loop_stop(force=True)
-                self._client = None
-        if disconnect_future is not None:
+            if disconnect_future is not None:
+                try:
+                    await asyncio.wait_for(disconnect_future, timeout=5)
+                except asyncio.TimeoutError:
+                    if DEBUG_LOG:
+                        _LOGGER.debug("Timeout waiting for BMW MQTT disconnect acknowledgement")
+                finally:
+                    self._disconnect_future = None
             try:
-                await asyncio.wait_for(disconnect_future, timeout=5)
-            except asyncio.TimeoutError:
+                self._client.loop_stop()
+            except Exception as err:  # pragma: no cover - defensive logging
                 if DEBUG_LOG:
-                    _LOGGER.debug("Timeout waiting for BMW MQTT disconnect acknowledgement")
+                    _LOGGER.debug("Error stopping BMW MQTT loop: %s", err)
             finally:
-                self._disconnect_future = None
+                self._client = None
         self._last_disconnect = time.monotonic()
         self._cancel_retry()
 
@@ -348,7 +363,7 @@ class CardataStreamManager:
         if self._retry_task is not None and not self._retry_task.done():
             return
 
-        delay = max(delay, self._retry_backoff)
+        delay = max(delay, self._retry_backoff, self._min_reconnect_interval)
         self._retry_backoff = min(self._retry_backoff * 2, 30)
         self._last_disconnect = time.monotonic()
 

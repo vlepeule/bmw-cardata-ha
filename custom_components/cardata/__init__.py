@@ -7,7 +7,7 @@ import logging
 import time
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import aiohttp
 
@@ -41,7 +41,7 @@ class CardataRuntimeData:
     refresh_task: asyncio.Task
     session: aiohttp.ClientSession
     coordinator: CardataCoordinator
-    container_manager: CardataContainerManager
+    container_manager: Optional[CardataContainerManager]
     reauth_in_progress: bool = False
     reauth_flow_id: str | None = None
     last_reauth_attempt: float = 0.0
@@ -65,11 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Missing GCID or ID token")
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
-    container_manager = CardataContainerManager(
-        session=session,
-        entry_id=entry.entry_id,
-        initial_container_id=data.get("hv_container_id"),
-    )
+    container_manager: Optional[CardataContainerManager] = None
 
     async def handle_stream_error(reason: str) -> None:
         await _handle_stream_error(hass, entry, reason)
@@ -101,7 +97,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await session.close()
         raise ConfigEntryNotReady(f"Initial token refresh failed: {err}") from err
 
-    if not refreshed_token:
+    if not refreshed_token and container_manager:
         try:
             container_manager.sync_from_entry(entry.data.get("hv_container_id"))
             await container_manager.async_ensure_hv_container(entry.data.get("access_token"))
@@ -253,7 +249,7 @@ async def _refresh_loop(
     entry: ConfigEntry,
     session: aiohttp.ClientSession,
     manager: CardataStreamManager,
-    container_manager: CardataContainerManager,
+    container_manager: Optional[CardataContainerManager],
 ) -> None:
     try:
         while True:
