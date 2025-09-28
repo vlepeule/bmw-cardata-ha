@@ -73,7 +73,11 @@ if release_type == "beta":
         except (IndexError, ValueError):
             print(f"Unsupported beta suffix: {suffix!r}", file=sys.stderr)
             sys.exit(1)
-        new_version = f"{major}.{minor}.{patch}-beta.{current + 1}"
+        if current >= 9:
+            patch += 1
+            new_version = f"{major}.{minor}.{patch}-beta.1"
+        else:
+            new_version = f"{major}.{minor}.{patch}-beta.{current + 1}"
     else:
         patch += 1
         new_version = f"{major}.{minor}.{patch}-beta.1"
