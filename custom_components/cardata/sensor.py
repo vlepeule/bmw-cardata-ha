@@ -82,6 +82,12 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
         elif sensor_type == "connection_status":
             self._attr_name = "Stream Connection Status"
+        elif sensor_type == "soc_rate":
+            self._attr_name = "Stream SOC Rate"
+            self._attr_native_unit_of_measurement = "%/h"
+            self._attr_icon = "mdi:battery-clock"
+            self._attr_state_class = "measurement"
+            self._attr_device_class = None
         else:
             self._attr_name = sensor_type
 
@@ -132,6 +138,12 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
             value = self._coordinator.connection_status
             if value is not None:
                 self._attr_native_value = value
+        elif self._sensor_type == "soc_rate":
+            rates = self._coordinator.get_soc_rates()
+            if rates:
+                self._attr_native_value = next(iter(rates.values()))
+            else:
+                self._attr_native_value = None
         self.schedule_update_ha_state()
 
     @property
@@ -199,9 +211,13 @@ async def async_setup_entry(
 
     diagnostic_entities: list[CardataDiagnosticsSensor] = []
     stream_manager = runtime.stream
-    for sensor_type in ("connection_status", "last_message"):
+    for sensor_type in ("connection_status", "last_message", "soc_rate"):
         unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
-        unique_id = f"{entry.entry_id}_diagnostics_{unique_suffix}"
+        if sensor_type == "soc_rate":
+            unique_id = f"{entry.entry_id}_diagnostics_soc_rate"
+        else:
+            unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
+            unique_id = f"{entry.entry_id}_diagnostics_{unique_suffix}"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
         if entity_id:
             entity_entry = entity_registry.async_get(entity_id)

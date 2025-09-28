@@ -80,6 +80,15 @@ class SocTracking:
         self.last_soc_percent = (self.energy_kwh / self.max_energy_kwh) * 100.0
         return self.last_soc_percent
 
+    def current_rate_per_hour(self) -> Optional[float]:
+        if (
+            not self.charging_active
+            or self.last_power_w in (None, 0)
+            or self.max_energy_kwh in (None, 0)
+        ):
+            return None
+        return (self.last_power_w / 1000.0) / self.max_energy_kwh * 100.0
+
 
 @dataclass
 class CardataCoordinator:
@@ -92,6 +101,7 @@ class CardataCoordinator:
     last_disconnect_reason: Optional[str] = None
     watchdog_task: Optional[asyncio.Task] = field(default=None, init=False, repr=False)
     _soc_tracking: Dict[str, SocTracking] = field(default_factory=dict, init=False)
+    _soc_rate: Dict[str, Optional[float]] = field(default_factory=dict, init=False)
 
     @property
     def signal_new_sensor(self) -> str:
@@ -246,6 +256,8 @@ class CardataCoordinator:
         if not tracking:
             return
         percent = tracking.estimate(now)
+        rate = tracking.current_rate_per_hour()
+        self._soc_rate[vin] = rate
         if percent is None:
             return
         header_descriptor = "vehicle.drivetrain.batteryManagement.header"
@@ -267,3 +279,10 @@ class CardataCoordinator:
         )
         if dispatcher:
             async_dispatcher_send(self.hass, self.signal_update, vin, header_descriptor)
+
+    def get_soc_rates(self) -> Dict[str, float]:
+        return {
+            vin: round(rate, 3)
+            for vin, rate in self._soc_rate.items()
+            if rate not in (None, 0)
+        }
