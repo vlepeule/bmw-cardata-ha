@@ -4,9 +4,9 @@
 
 # BimmerData Streamline (BMW CarData for Home Assistant)
 
-## This is experimental and I'm not a Python developer. Wait for the core integration to get fixed if you want stable experience, but if you want to help, keep reporting the bugs and I'll take a look! :) 
+## This is experimental. Wait for the core integration to get fixed if you want stable experience, but if you want to help, keep reporting the bugs and I'll take a look! :) I will keep pushing possibly broken changes to this. When I feel that it's stable enough, I will create a separate branch for testing purposes, but at the moment it's highly experimental. So use at your own risk.
 
-## I will keep pushing possibly broken changes to this. When I feel that it's stable enough, I will create a separate branch for testing purposes, but at the moment it's highly experimental. So use at your own risk.
+### Known problems: BEV battery update rate is quite slow, didn't receive a single update during the 6 hour charging session. This might be quite dealbreaker. 
 
 Turn your BMW CarData stream into native Home Assistant entities. This integration subscribes directly to the BMW CarData MQTT stream, keeps the token fresh automatically, and creates sensors/binary sensors for every descriptor that emits data.
 
