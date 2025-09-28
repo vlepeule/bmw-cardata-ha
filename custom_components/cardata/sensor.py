@@ -63,10 +63,12 @@ class CardataDiagnosticsSensor(SensorEntity):
     def __init__(
         self,
         coordinator: CardataCoordinator,
+        stream_manager,
         entry_id: str,
         sensor_type: str,
     ) -> None:
         self._coordinator = coordinator
+        self._stream = stream_manager
         self._entry_id = entry_id
         self._sensor_type = sensor_type
         self._unsub = None
@@ -90,9 +92,12 @@ class CardataDiagnosticsSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        if self._sensor_type == "connection_status" and self._coordinator.last_disconnect_reason:
-            return {"last_disconnect_reason": self._coordinator.last_disconnect_reason}
-        return {}
+        if self._sensor_type != "connection_status":
+            return {}
+        attrs = dict(self._stream.debug_info)
+        if self._coordinator.last_disconnect_reason:
+            attrs["last_disconnect_reason"] = self._coordinator.last_disconnect_reason
+        return attrs
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -179,6 +184,7 @@ async def async_setup_entry(
     )
 
     diagnostic_entities: list[CardataDiagnosticsSensor] = []
+    stream_manager = runtime.stream
     for sensor_type in ("connection_status", "last_message"):
         unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
         unique_id = f"{entry.entry_id}_diagnostics_{unique_suffix}"
@@ -188,7 +194,12 @@ async def async_setup_entry(
             if entity_entry and entity_entry.disabled_by is not None:
                 continue
         diagnostic_entities.append(
-            CardataDiagnosticsSensor(coordinator, entry.entry_id, sensor_type)
+            CardataDiagnosticsSensor(
+                coordinator,
+                stream_manager,
+                entry.entry_id,
+                sensor_type,
+            )
         )
 
     if diagnostic_entities:

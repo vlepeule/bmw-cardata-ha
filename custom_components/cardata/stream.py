@@ -125,6 +125,21 @@ class CardataStreamManager:
     ) -> None:
         self._status_callback = callback
 
+    @property
+    def debug_info(self) -> dict[str, str | int | bool]:
+        """Return connection parameters for diagnostics."""
+
+        return {
+            "client_id": self._client_id,
+            "gcid": self._gcid,
+            "host": self._host,
+            "port": self._port,
+            "keepalive": self._keepalive,
+            "topic": f"{self._gcid}/+",
+            "clean_session": True,
+            "protocol": "MQTTv311",
+        }
+
     def _start_client(self) -> None:
         client_id = self._gcid
         client = mqtt.Client(
