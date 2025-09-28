@@ -38,6 +38,16 @@ class CardataSensor(CardataEntity, SensorEntity):
                 unit = last_state.attributes.get("unit_of_measurement")
                 if unit is not None:
                     self._attr_native_unit_of_measurement = unit
+                timestamp = last_state.attributes.get("timestamp")
+                if not timestamp and last_state.last_changed:
+                    timestamp = last_state.last_changed.isoformat()
+                self._coordinator.restore_descriptor_state(
+                    self.vin,
+                    self.descriptor,
+                    self._attr_native_value,
+                    self._attr_native_unit_of_measurement,
+                    timestamp,
+                )
         self._unsubscribe = async_dispatcher_connect(
             self.hass,
             self._coordinator.signal_update,
@@ -164,12 +174,28 @@ class CardataSocEstimateSensor(CardataEntity, SensorEntity):
                 self._attr_native_value = float(last_state.state)
             except (TypeError, ValueError):
                 self._attr_native_value = None
+            else:
+                restored_ts = last_state.attributes.get("timestamp")
+                reference = dt_util.parse_datetime(restored_ts) if restored_ts else None
+                if reference is None:
+                    reference = last_state.last_changed
+                if reference is not None:
+                    reference = dt_util.as_utc(reference)
+                if self._coordinator.get_soc_estimate(self.vin) is None:
+                    self._coordinator.restore_soc_cache(
+                        self.vin,
+                        estimate=self._attr_native_value,
+                        timestamp=reference,
+                    )
         self._unsubscribe = async_dispatcher_connect(
             self.hass,
             self._coordinator.signal_soc_estimate,
             self._handle_update,
         )
-        self._handle_update(self.vin)
+        existing = self._coordinator.get_soc_estimate(self.vin)
+        if existing is not None:
+            self._attr_native_value = existing
+            self.schedule_update_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsubscribe:
@@ -179,7 +205,8 @@ class CardataSocEstimateSensor(CardataEntity, SensorEntity):
     def _handle_update(self, vin: str) -> None:
         if vin != self.vin:
             return
-        self._attr_native_value = self._coordinator.get_soc_estimate(vin)
+        value = self._coordinator.get_soc_estimate(vin)
+        self._attr_native_value = value
         self.schedule_update_ha_state()
 
 
@@ -202,12 +229,28 @@ class CardataSocRateSensor(CardataEntity, SensorEntity):
                 self._attr_native_value = float(last_state.state)
             except (TypeError, ValueError):
                 self._attr_native_value = None
+            else:
+                restored_ts = last_state.attributes.get("timestamp")
+                reference = dt_util.parse_datetime(restored_ts) if restored_ts else None
+                if reference is None:
+                    reference = last_state.last_changed
+                if reference is not None:
+                    reference = dt_util.as_utc(reference)
+                if self._coordinator.get_soc_rate(self.vin) is None:
+                    self._coordinator.restore_soc_cache(
+                        self.vin,
+                        rate=self._attr_native_value,
+                        timestamp=reference,
+                    )
         self._unsubscribe = async_dispatcher_connect(
             self.hass,
             self._coordinator.signal_soc_estimate,
             self._handle_update,
         )
-        self._handle_update(self.vin)
+        existing = self._coordinator.get_soc_rate(self.vin)
+        if existing is not None:
+            self._attr_native_value = existing
+            self.schedule_update_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         if self._unsubscribe:
@@ -217,7 +260,8 @@ class CardataSocRateSensor(CardataEntity, SensorEntity):
     def _handle_update(self, vin: str) -> None:
         if vin != self.vin:
             return
-        self._attr_native_value = self._coordinator.get_soc_rate(vin)
+        value = self._coordinator.get_soc_rate(vin)
+        self._attr_native_value = value
         self.schedule_update_ha_state()
 
 

@@ -33,6 +33,7 @@ class SocTracking:
     last_power_time: Optional[datetime] = None
     charging_active: bool = False
     last_soc_percent: Optional[float] = None
+    rate_per_hour: Optional[float] = None
     estimated_percent: Optional[float] = None
     last_estimate_time: Optional[datetime] = None
 
@@ -42,6 +43,7 @@ class SocTracking:
         self.max_energy_kwh = value
         if self.last_soc_percent is not None and self.energy_kwh is None:
             self.energy_kwh = value * self.last_soc_percent / 100.0
+        self._recalculate_rate()
 
     def update_actual_soc(self, percent: float, timestamp: Optional[datetime]) -> None:
         self.last_soc_percent = percent
@@ -64,11 +66,13 @@ class SocTracking:
         self.estimate(target_time)
         self.last_power_w = power_w
         self.last_power_time = target_time
+        self._recalculate_rate()
 
     def update_status(self, status: Optional[str]) -> None:
         if status is None:
             return
         self.charging_active = status in {"CHARGINGACTIVE", "CHARGING_IN_PROGRESS"}
+        self._recalculate_rate()
 
     def estimate(self, now: datetime) -> Optional[float]:
         if self.estimated_percent is None:
@@ -102,13 +106,17 @@ class SocTracking:
         return self.estimated_percent
 
     def current_rate_per_hour(self) -> Optional[float]:
-        if (
-            not self.charging_active
-            or self.last_power_w in (None, 0)
-            or self.max_energy_kwh in (None, 0)
-        ):
+        if not self.charging_active:
             return None
-        return (self.last_power_w / 1000.0) / self.max_energy_kwh * 100.0
+        return self.rate_per_hour
+
+    def _recalculate_rate(self) -> None:
+        if not self.charging_active:
+            self.rate_per_hour = None
+            return
+        if self.last_power_w in (None, 0) or self.max_energy_kwh in (None, 0):
+            return
+        self.rate_per_hour = (self.last_power_w / 1000.0) / self.max_energy_kwh * 100.0
 
 
 @dataclass
@@ -324,3 +332,94 @@ class CardataCoordinator:
 
     def get_soc_estimate(self, vin: str) -> Optional[float]:
         return self._soc_estimate.get(vin)
+
+    def restore_descriptor_state(
+        self,
+        vin: str,
+        descriptor: str,
+        value: Any,
+        unit: Optional[str],
+        timestamp: Optional[str],
+    ) -> None:
+        if value is None:
+            return
+        vehicle_state = self.data.setdefault(vin, {})
+        stored_value: Any = value
+        if descriptor in {
+            "vehicle.drivetrain.batteryManagement.header",
+            "vehicle.drivetrain.batteryManagement.maxEnergy",
+            "vehicle.powertrain.electric.battery.charging.power",
+        }:
+            try:
+                stored_value = float(value)
+            except (TypeError, ValueError):
+                return
+        vehicle_state[descriptor] = DescriptorState(
+            value=stored_value,
+            unit=unit,
+            timestamp=timestamp,
+        )
+        parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
+        tracking = self._soc_tracking.setdefault(vin, SocTracking())
+
+        updated = False
+        if descriptor == "vehicle.drivetrain.batteryManagement.header":
+            try:
+                tracking.update_actual_soc(float(value), parsed_ts)
+                updated = True
+            except (TypeError, ValueError):
+                return
+        elif descriptor == "vehicle.drivetrain.batteryManagement.maxEnergy":
+            try:
+                tracking.update_max_energy(float(value))
+                updated = True
+            except (TypeError, ValueError):
+                return
+        elif descriptor == "vehicle.powertrain.electric.battery.charging.power":
+            try:
+                tracking.update_power(float(value), parsed_ts)
+                updated = True
+            except (TypeError, ValueError):
+                return
+        elif descriptor == "vehicle.drivetrain.electricEngine.charging.status":
+            if isinstance(value, str):
+                tracking.update_status(value)
+                updated = True
+
+        if not updated:
+            return
+        if tracking.estimated_percent is not None:
+            self._soc_estimate[vin] = round(tracking.estimated_percent, 2)
+        elif tracking.last_soc_percent is not None:
+            self._soc_estimate[vin] = round(tracking.last_soc_percent, 2)
+        if tracking.rate_per_hour not in (None, 0):
+            self._soc_rate[vin] = round(tracking.rate_per_hour, 3)
+        else:
+            self._soc_rate.pop(vin, None)
+
+    def restore_soc_cache(
+        self,
+        vin: str,
+        *,
+        estimate: Optional[float] = None,
+        rate: Optional[float] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> None:
+        tracking = self._soc_tracking.setdefault(vin, SocTracking())
+        reference_time = timestamp or datetime.now(timezone.utc)
+        if estimate is not None:
+            tracking.estimated_percent = estimate
+            tracking.last_estimate_time = reference_time
+            self._soc_estimate[vin] = round(estimate, 2)
+        if rate is not None:
+            tracking.rate_per_hour = rate if rate not in (None, 0) else None
+            if tracking.rate_per_hour:
+                self._soc_rate[vin] = round(tracking.rate_per_hour, 3)
+                tracking.charging_active = True
+                if tracking.max_energy_kwh not in (None, 0):
+                    tracking.last_power_w = (
+                        tracking.rate_per_hour / 100.0
+                    ) * tracking.max_energy_kwh * 1000.0
+                tracking.last_power_time = reference_time
+            else:
+                self._soc_rate.pop(vin, None)
