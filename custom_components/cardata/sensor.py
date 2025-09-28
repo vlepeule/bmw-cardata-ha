@@ -109,7 +109,7 @@ class CardataDiagnosticsSensor(SensorEntity):
             self._unsub = None
 
     def _handle_update(self) -> None:
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     @property
     def native_value(self):
