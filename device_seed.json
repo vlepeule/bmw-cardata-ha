@@ -1,0 +1,15 @@
+{
+  "user_code": "65cPNohH",
+  "device_code": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJodHRwczovL2Zvcmdlcm9jay1ncmVlbi5wcm9kLWdjZG0uZXUtY2VudHJhbC0xLmF3cy5jbG91ZC5ibXc6NDQzL2FtL29hdXRoMiIsIm5iZiI6MTc1OTAyMDMyNiwidXNlcl9jb2RlIjoiNjVjUE5vaEgiLCJpc3MiOiJodHRwczovL2Zvcmdlcm9jay1ncmVlbi5wcm9kLWdjZG0uZXUtY2VudHJhbC0xLmF3cy5jbG91ZC5ibXc6NDQzL2FtL29hdXRoMiIsImV4cCI6MTc1OTAyMDYyNiwiaWF0IjoxNzU5MDIwMzI2LCJqdGkiOiI5OGMyODk0NC1hNWZlLTQ2MTctYTQ2My1lNTEyZjNhNGNmZDIifQ.wx7xuKGQLYklkbUB6yYOmVY4F6Wh8T55vVCvLj6kNuY",
+  "interval": 5,
+  "verification_uri_complete": "https://customer.bmwgroup.com/oneid/link?user_code=65cPNohH",
+  "verification_uri": "https://customer.bmwgroup.com/oneid/link",
+  "expires_in": 300,
+  "code_verifier": "q-5CQgMGyoTJG5dRF5KBjoSHIUFdEQjlnfDmbDsXFMsN7d27cVvCpgvX7Wu4ynymimGvbnIePfNv6zms4lUo65wagUI0jhT_FnjtGpyt68DeN19skUI",
+  "code_challenge": "lRSOEdmJ_AM_dOu2s7LL_0TBXEJC8ZiQ0XdPjWZdtUg",
+  "scope": "authenticate_user openid cardata:api:read cardata:streaming:read",
+  "client_id": "3c7d956b-7a33-4db1-b065-b2b1f08cc903",
+  "device_code_url": "https://customer.bmwgroup.com/gcdm/oauth/device/code",
+  "token_url": "https://customer.bmwgroup.com/gcdm/oauth/token",
+  "requested_at": "2025-09-28T00:45:26.528486Z"
+}
