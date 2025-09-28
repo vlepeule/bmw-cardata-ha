@@ -56,8 +56,13 @@ class CardataStreamManager:
         self._retry_backoff = 3
         self._retry_task: Optional[asyncio.Task] = None
         self._min_reconnect_interval = 10.0
+        self._connect_lock = asyncio.Lock()
 
     async def async_start(self) -> None:
+        async with self._connect_lock:
+            await self._async_start_locked()
+
+    async def _async_start_locked(self) -> None:
         self._disconnect_future = None
         if self._last_disconnect is not None:
             elapsed = time.monotonic() - self._last_disconnect
@@ -73,13 +78,19 @@ class CardataStreamManager:
         self._reconnect_backoff = 5
 
     async def async_stop(self) -> None:
+        async with self._connect_lock:
+            await self._async_stop_locked()
+
+    async def _async_stop_locked(self) -> None:
         disconnect_future: Optional[asyncio.Future[None]] = None
-        if self._client:
+        client = self._client
+        self._client = None
+        if client is not None:
             loop = asyncio.get_running_loop()
             disconnect_future = loop.create_future()
             self._disconnect_future = disconnect_future
             try:
-                self._client.disconnect()
+                client.disconnect()
             except Exception as err:  # pragma: no cover - defensive logging
                 if DEBUG_LOG:
                     _LOGGER.debug("Error disconnecting BMW MQTT client: %s", err)
@@ -92,12 +103,10 @@ class CardataStreamManager:
                 finally:
                     self._disconnect_future = None
             try:
-                self._client.loop_stop()
+                client.loop_stop()
             except Exception as err:  # pragma: no cover - defensive logging
                 if DEBUG_LOG:
                     _LOGGER.debug("Error stopping BMW MQTT loop: %s", err)
-            finally:
-                self._client = None
         self._last_disconnect = time.monotonic()
         self._cancel_retry()
 
@@ -384,7 +393,8 @@ class CardataStreamManager:
                                 )
                         finally:
                             self._disconnect_future = None
-                    await self.async_start()
+                    async with self._connect_lock:
+                        await self._async_start_locked()
             except asyncio.CancelledError:
                 return
             except Exception as err:  # pragma: no cover - defensive logging
