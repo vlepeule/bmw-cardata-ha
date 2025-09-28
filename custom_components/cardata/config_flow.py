@@ -156,8 +156,14 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 runtime.last_reauth_attempt = 0.0
                 runtime.last_refresh_attempt = 0.0
                 new_token = entry_data.get("id_token")
-                if new_token:
-                    self.hass.async_create_task(runtime.stream.async_update_token(new_token))
+                new_gcid = entry_data.get("gcid")
+                if new_token or new_gcid:
+                    self.hass.async_create_task(
+                        runtime.stream.async_update_credentials(
+                            gcid=new_gcid,
+                            id_token=new_token,
+                        )
+                    )
             notification_id = f"{DOMAIN}_reauth_{self._reauth_entry.entry_id}"
             persistent_notification.async_dismiss(self.hass, notification_id)
             return self.async_abort(reason="reauth_successful")

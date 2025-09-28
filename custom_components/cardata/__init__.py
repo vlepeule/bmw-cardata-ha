@@ -325,7 +325,10 @@ async def _refresh_tokens(
                 data["hv_container_id"] = container_id
 
     hass.config_entries.async_update_entry(entry, data=data)
-    await manager.async_update_token(new_id_token)
+    await manager.async_update_credentials(
+        gcid=data.get("gcid"),
+        id_token=new_id_token,
+    )
     runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if runtime:
         runtime.reauth_pending = False
