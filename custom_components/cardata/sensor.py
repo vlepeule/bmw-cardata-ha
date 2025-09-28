@@ -93,6 +93,7 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
             self._attr_name = sensor_type
         self._attr_unique_id = f"{entry_id}_diagnostics_{suffix}"
 
+    @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             identifiers={(DOMAIN, self._entry_id)},
