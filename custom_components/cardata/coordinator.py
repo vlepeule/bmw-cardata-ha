@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, Optional
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util import dt as dt_util
 
 from .const import DEBUG_LOG, DOMAIN, DIAGNOSTIC_LOG_INTERVAL
 
@@ -24,6 +25,63 @@ class DescriptorState:
 
 
 @dataclass
+class SocTracking:
+    energy_kwh: Optional[float] = None
+    max_energy_kwh: Optional[float] = None
+    last_update: Optional[datetime] = None
+    last_power_w: Optional[float] = None
+    last_power_time: Optional[datetime] = None
+    charging_active: bool = False
+    last_soc_percent: Optional[float] = None
+
+    def update_max_energy(self, value: Optional[float]) -> None:
+        if value is None:
+            return
+        self.max_energy_kwh = value
+        if self.last_soc_percent is not None and self.energy_kwh is None:
+            self.energy_kwh = value * self.last_soc_percent / 100.0
+
+    def update_actual_soc(self, percent: float, timestamp: Optional[datetime]) -> None:
+        self.last_soc_percent = percent
+        ts = timestamp or datetime.now(timezone.utc)
+        self.last_update = ts
+        if self.max_energy_kwh:
+            self.energy_kwh = self.max_energy_kwh * percent / 100.0
+        else:
+            self.energy_kwh = None
+
+    def update_power(self, power_w: Optional[float], timestamp: Optional[datetime]) -> None:
+        if power_w is None:
+            return
+        self.last_power_w = power_w
+        self.last_power_time = timestamp or datetime.now(timezone.utc)
+
+    def update_status(self, status: Optional[str]) -> None:
+        if status is None:
+            return
+        self.charging_active = status in {"CHARGINGACTIVE", "CHARGING_IN_PROGRESS"}
+
+    def estimate(self, now: datetime) -> Optional[float]:
+        if (
+            not self.charging_active
+            or self.energy_kwh is None
+            or self.max_energy_kwh in (None, 0)
+            or self.last_update is None
+            or self.last_power_w in (None, 0)
+        ):
+            return None
+        delta_seconds = (now - self.last_update).total_seconds()
+        if delta_seconds <= 0:
+            return None
+        self.energy_kwh += (self.last_power_w * delta_seconds) / 3600.0
+        if self.energy_kwh > self.max_energy_kwh:
+            self.energy_kwh = self.max_energy_kwh
+        self.last_update = now
+        self.last_soc_percent = (self.energy_kwh / self.max_energy_kwh) * 100.0
+        return self.last_soc_percent
+
+
+@dataclass
 class CardataCoordinator:
     hass: HomeAssistant
     entry_id: str
@@ -33,6 +91,7 @@ class CardataCoordinator:
     connection_status: str = "connecting"
     last_disconnect_reason: Optional[str] = None
     watchdog_task: Optional[asyncio.Task] = field(default=None, init=False, repr=False)
+    _soc_tracking: Dict[str, SocTracking] = field(default_factory=dict, init=False)
 
     @property
     def signal_new_sensor(self) -> str:
@@ -69,6 +128,9 @@ class CardataCoordinator:
 
         vehicle_name: Optional[str] = None
 
+        tracking = self._soc_tracking.setdefault(vin, SocTracking())
+        now = datetime.now(timezone.utc)
+
         for descriptor, descriptor_payload in data.items():
             if not isinstance(descriptor_payload, dict):
                 continue
@@ -87,6 +149,26 @@ class CardataCoordinator:
                 else:
                     new_sensor.append(descriptor)
 
+            parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
+            if descriptor == "vehicle.drivetrain.batteryManagement.header":
+                try:
+                    tracking.update_actual_soc(float(value), parsed_ts)
+                except (TypeError, ValueError):
+                    pass
+            elif descriptor == "vehicle.drivetrain.batteryManagement.maxEnergy":
+                try:
+                    tracking.update_max_energy(float(value))
+                except (TypeError, ValueError):
+                    pass
+            elif descriptor == "vehicle.powertrain.electric.battery.charging.power":
+                try:
+                    tracking.update_power(float(value), parsed_ts)
+                except (TypeError, ValueError):
+                    pass
+            elif descriptor == "vehicle.drivetrain.electricEngine.charging.status":
+                if isinstance(value, str):
+                    tracking.update_status(value)
+
             async_dispatcher_send(self.hass, self.signal_update, vin, descriptor)
 
         for descriptor in new_sensor:
@@ -99,6 +181,8 @@ class CardataCoordinator:
 
         if vehicle_name:
             async_dispatcher_send(self.hass, f"{DOMAIN}_{self.entry_id}_name", vin, vehicle_name)
+
+        self._apply_soc_estimate(vin, now)
 
         async_dispatcher_send(self.hass, self.signal_diagnostics)
 
@@ -152,4 +236,34 @@ class CardataCoordinator:
                 self.last_disconnect_reason,
                 self.last_message_at,
             )
+        now = datetime.now(timezone.utc)
+        for vin in list(self._soc_tracking.keys()):
+            self._apply_soc_estimate(vin, now, dispatcher=False)
         async_dispatcher_send(self.hass, self.signal_diagnostics)
+
+    def _apply_soc_estimate(self, vin: str, now: datetime, dispatcher: bool = True) -> None:
+        tracking = self._soc_tracking.get(vin)
+        if not tracking:
+            return
+        percent = tracking.estimate(now)
+        if percent is None:
+            return
+        header_descriptor = "vehicle.drivetrain.batteryManagement.header"
+        vehicle_state = self.data.setdefault(vin, {})
+        existing = vehicle_state.get(header_descriptor)
+        current_value = None
+        if existing and existing.value is not None:
+            try:
+                current_value = float(existing.value)
+            except (TypeError, ValueError):
+                current_value = None
+        if current_value is not None and abs(current_value - percent) < 0.1:
+            return
+        timestamp = dt_util.as_utc(now).isoformat()
+        vehicle_state[header_descriptor] = DescriptorState(
+            value=round(percent, 2),
+            unit="percent",
+            timestamp=timestamp,
+        )
+        if dispatcher:
+            async_dispatcher_send(self.hass, self.signal_update, vin, header_descriptor)
