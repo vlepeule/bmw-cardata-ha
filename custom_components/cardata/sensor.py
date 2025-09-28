@@ -95,11 +95,11 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._entry_id)},
-            manufacturer="BMW",
-            name="CarData Debug Device",
-        )
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "manufacturer": "BMW",
+            "name": "CarData Debug Device",
+        }
 
     @property
     def extra_state_attributes(self) -> dict:

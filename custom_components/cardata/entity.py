@@ -23,11 +23,11 @@ class CardataEntity(RestoreEntity):
     @property
     def device_info(self) -> DeviceInfo:
         name = self._coordinator.names.get(self._vin, self._vin)
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._vin)},
-            manufacturer="BMW",
-            name=name,
-        )
+        return {
+            "identifiers": {(DOMAIN, self._vin)},
+            "manufacturer": "BMW",
+            "name": name,
+        }
 
     @property
     def available(self) -> bool:
