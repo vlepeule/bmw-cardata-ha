@@ -163,6 +163,8 @@ async def async_setup_entry(
         unique_id = entity_entry.unique_id
         if not unique_id or "_" not in unique_id:
             continue
+        if unique_id.startswith(f"{entry.entry_id}_diagnostics_"):
+            continue
         vin, descriptor = unique_id.split("_", 1)
         ensure_entity(vin, descriptor, assume_sensor=True)
 
@@ -180,8 +182,11 @@ async def async_setup_entry(
     for sensor_type in ("connection_status", "last_message"):
         unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
         unique_id = f"{entry.entry_id}_diagnostics_{unique_suffix}"
-        if entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id):
-            continue
+        entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        if entity_id:
+            entity_entry = entity_registry.async_get(entity_id)
+            if entity_entry and entity_entry.disabled_by is not None:
+                continue
         diagnostic_entities.append(
             CardataDiagnosticsSensor(coordinator, entry.entry_id, sensor_type)
         )
