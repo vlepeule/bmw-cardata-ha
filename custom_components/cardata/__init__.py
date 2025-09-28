@@ -27,6 +27,7 @@ from .const import (
     DIAGNOSTIC_LOG_INTERVAL,
 )
 from .device_flow import CardataAuthError, refresh_tokens
+from .container import CardataContainerError, CardataContainerManager
 from .stream import CardataStreamManager
 from .coordinator import CardataCoordinator
 
@@ -40,6 +41,7 @@ class CardataRuntimeData:
     refresh_task: asyncio.Task
     session: aiohttp.ClientSession
     coordinator: CardataCoordinator
+    container_manager: CardataContainerManager
     reauth_in_progress: bool = False
     reauth_flow_id: str | None = None
     last_reauth_attempt: float = 0.0
@@ -63,6 +65,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Missing GCID or ID token")
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
+    container_manager = CardataContainerManager(
+        session=session,
+        entry_id=entry.entry_id,
+        initial_container_id=data.get("hv_container_id"),
+    )
 
     async def handle_stream_error(reason: str) -> None:
         await _handle_stream_error(hass, entry, reason)
@@ -82,7 +89,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     refreshed_token = False
     try:
-        await _refresh_tokens(entry, session, manager)
+        await _refresh_tokens(entry, session, manager, container_manager)
         refreshed_token = True
     except CardataAuthError as err:
         _LOGGER.warning(
@@ -93,6 +100,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:  # pylint: disable=broad-except
         await session.close()
         raise ConfigEntryNotReady(f"Initial token refresh failed: {err}") from err
+
+    if not refreshed_token:
+        try:
+            container_manager.sync_from_entry(entry.data.get("hv_container_id"))
+            await container_manager.async_ensure_hv_container(entry.data.get("access_token"))
+        except CardataContainerError as err:
+            _LOGGER.warning(
+                "Unable to ensure HV container for entry %s: %s",
+                entry.entry_id,
+                err,
+            )
 
     if manager.client is None:
         try:
@@ -105,13 +123,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 ) from err
             raise ConfigEntryNotReady(f"Unable to connect to BMW MQTT: {err}") from err
 
-    refresh_task = hass.loop.create_task(_refresh_loop(hass, entry, session, manager))
+    refresh_task = hass.loop.create_task(
+        _refresh_loop(hass, entry, session, manager, container_manager)
+    )
 
     hass.data[DOMAIN][entry.entry_id] = CardataRuntimeData(
         stream=manager,
         refresh_task=refresh_task,
         session=session,
         coordinator=coordinator,
+        container_manager=container_manager,
         reauth_in_progress=False,
         reauth_flow_id=None,
     )
@@ -163,7 +184,12 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
                     "Attempting token refresh after unauthorized response for entry %s",
                     entry.entry_id,
                 )
-                await _refresh_tokens(entry, runtime.session, runtime.stream)
+                await _refresh_tokens(
+                    entry,
+                    runtime.session,
+                    runtime.stream,
+                    runtime.container_manager,
+                )
                 runtime.reauth_in_progress = False
                 runtime.last_reauth_attempt = 0.0
                 runtime.reauth_pending = False
@@ -227,12 +253,18 @@ async def _refresh_loop(
     entry: ConfigEntry,
     session: aiohttp.ClientSession,
     manager: CardataStreamManager,
+    container_manager: CardataContainerManager,
 ) -> None:
     try:
         while True:
             await asyncio.sleep(DEFAULT_REFRESH_INTERVAL)
             try:
-                await _refresh_tokens(entry, session, manager)
+                await _refresh_tokens(
+                    entry,
+                    session,
+                    manager,
+                    container_manager,
+                )
             except CardataAuthError as err:
                 _LOGGER.error("Token refresh failed: %s", err)
     except asyncio.CancelledError:
@@ -243,6 +275,7 @@ async def _refresh_tokens(
     entry: ConfigEntry,
     session: aiohttp.ClientSession,
     manager: CardataStreamManager,
+    container_manager: CardataContainerManager | None = None,
 ) -> None:
     hass = manager.hass
     data = dict(entry.data)
@@ -275,6 +308,22 @@ async def _refresh_tokens(
         }
     )
 
+    if container_manager:
+        container_manager.sync_from_entry(data.get("hv_container_id"))
+        try:
+            container_id = await container_manager.async_ensure_hv_container(
+                data.get("access_token")
+            )
+        except CardataContainerError as err:
+            _LOGGER.warning(
+                "Unable to ensure HV container for entry %s: %s",
+                entry.entry_id,
+                err,
+            )
+        else:
+            if container_id:
+                data["hv_container_id"] = container_id
+
     hass.config_entries.async_update_entry(entry, data=data)
     await manager.async_update_token(new_id_token)
     runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
@@ -286,5 +335,9 @@ async def async_manual_refresh_tokens(hass: HomeAssistant, entry: ConfigEntry) -
     runtime: CardataRuntimeData | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if runtime is None:
         raise CardataAuthError("Integration runtime not ready")
-    await _refresh_tokens(entry, runtime.session, runtime.stream)
-
+    await _refresh_tokens(
+        entry,
+        runtime.session,
+        runtime.stream,
+        runtime.container_manager,
+    )

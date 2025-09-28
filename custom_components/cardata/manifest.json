@@ -9,6 +9,6 @@
   "documentation": "https://github.com/jjyks/bmw-cardata-homeassistant",
   "iot_class": "cloud_push",
   "requirements": [],
-  "version": "0.1.37",
+  "version": "0.1.38-beta.1",
   "integration_type": "device"
 }
