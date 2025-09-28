@@ -138,6 +138,7 @@ class CardataStreamManager:
             "topic": f"{self._gcid}/+",
             "clean_session": True,
             "protocol": "MQTTv311",
+            "id_token": self._password,
         }
 
     def _start_client(self) -> None:
