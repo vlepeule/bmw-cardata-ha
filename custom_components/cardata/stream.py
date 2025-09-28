@@ -52,14 +52,21 @@ class CardataStreamManager:
         self._reconnect_backoff = 5
         self._max_backoff = 300
         self._last_disconnect: Optional[float] = None
+        self._disconnect_future: Optional[asyncio.Future[None]] = None
+        self._retry_backoff = 3
         self._retry_task: Optional[asyncio.Task] = None
 
     async def async_start(self) -> None:
+        self._disconnect_future = None
         await self.hass.async_add_executor_job(self._start_client)
         self._reconnect_backoff = 5
 
     async def async_stop(self) -> None:
+        disconnect_future: Optional[asyncio.Future[None]] = None
         if self._client:
+            loop = asyncio.get_running_loop()
+            disconnect_future = loop.create_future()
+            self._disconnect_future = disconnect_future
             try:
                 self._client.disconnect()
             except Exception as err:  # pragma: no cover - defensive logging
@@ -68,7 +75,15 @@ class CardataStreamManager:
             finally:
                 self._client.loop_stop(force=True)
                 self._client = None
-                self._last_disconnect = time.monotonic()
+        if disconnect_future is not None:
+            try:
+                await asyncio.wait_for(disconnect_future, timeout=5)
+            except asyncio.TimeoutError:
+                if DEBUG_LOG:
+                    _LOGGER.debug("Timeout waiting for BMW MQTT disconnect acknowledgement")
+            finally:
+                self._disconnect_future = None
+        self._last_disconnect = time.monotonic()
         self._cancel_retry()
 
     @property
@@ -142,6 +157,7 @@ class CardataStreamManager:
                 asyncio.run_coroutine_threadsafe(self._notify_recovered(), self.hass.loop)
             self._cancel_retry()
             self._last_disconnect = None
+            self._retry_backoff = 3
             if self._status_callback:
                 asyncio.run_coroutine_threadsafe(
                     self._status_callback("connected"),
@@ -199,6 +215,14 @@ class CardataStreamManager:
             5: "Not authorized",
         }.get(rc, "Unknown")
         _LOGGER.warning("BMW MQTT disconnected rc=%s (%s)", rc, reason)
+        self._last_disconnect = time.monotonic()
+        disconnect_future = self._disconnect_future
+        if disconnect_future and not disconnect_future.done():
+            def _set_disconnect() -> None:
+                if not disconnect_future.done():
+                    disconnect_future.set_result(None)
+
+            self.hass.loop.call_soon_threadsafe(_set_disconnect)
         if userdata is not None and isinstance(userdata, dict):
             userdata["reconnect"] = True
         if rc in (4, 5):
@@ -318,17 +342,33 @@ class CardataStreamManager:
         if self._retry_task and not self._retry_task.done():
             self._retry_task.cancel()
         self._retry_task = None
+        self._retry_backoff = 3
 
     def _schedule_retry(self, delay: float) -> None:
         if self._retry_task is not None and not self._retry_task.done():
             return
 
+        delay = max(delay, self._retry_backoff)
+        self._retry_backoff = min(self._retry_backoff * 2, 30)
         self._last_disconnect = time.monotonic()
 
         async def _retry() -> None:
             try:
                 await asyncio.sleep(delay)
                 if self._client is None:
+                    if (
+                        self._disconnect_future is not None
+                        and not self._disconnect_future.done()
+                    ):
+                        try:
+                            await asyncio.wait_for(self._disconnect_future, timeout=10)
+                        except asyncio.TimeoutError:
+                            if DEBUG_LOG:
+                                _LOGGER.debug(
+                                    "Timed out waiting for previous BMW MQTT disconnect before retry"
+                                )
+                        finally:
+                            self._disconnect_future = None
                     await self.async_start()
             except asyncio.CancelledError:
                 return
