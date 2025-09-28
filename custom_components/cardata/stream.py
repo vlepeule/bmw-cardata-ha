@@ -61,6 +61,10 @@ class CardataStreamManager:
             self._client.disconnect()
             self._client = None
 
+    @property
+    def client(self) -> Optional[mqtt.Client]:
+        return self._client
+
     def set_message_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
         self._message_callback = callback
 

@@ -80,11 +80,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     manager.set_message_callback(coordinator.async_handle_message)
     manager.set_status_callback(coordinator.async_handle_connection_event)
 
+    refreshed_token = False
     try:
-        await manager.async_start()
-    except Exception as err:
+        await _refresh_tokens(entry, session, manager)
+        refreshed_token = True
+    except CardataAuthError as err:
+        _LOGGER.warning(
+            "Initial token refresh failed for entry %s: %s; continuing with stored token",
+            entry.entry_id,
+            err,
+        )
+    except Exception as err:  # pylint: disable=broad-except
         await session.close()
-        raise ConfigEntryNotReady(f"Unable to connect to BMW MQTT: {err}") from err
+        raise ConfigEntryNotReady(f"Initial token refresh failed: {err}") from err
+
+    if manager.client is None:
+        try:
+            await manager.async_start()
+        except Exception as err:
+            await session.close()
+            if refreshed_token:
+                raise ConfigEntryNotReady(
+                    f"Unable to connect to BMW MQTT after token refresh: {err}"
+                ) from err
+            raise ConfigEntryNotReady(f"Unable to connect to BMW MQTT: {err}") from err
 
     refresh_task = hass.loop.create_task(_refresh_loop(hass, entry, session, manager))
 
@@ -99,8 +118,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await coordinator.async_handle_connection_event("connecting")
     await coordinator.async_start_watchdog()
-
-    hass.async_create_task(_async_refresh_on_startup(hass, entry))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -271,13 +288,3 @@ async def async_manual_refresh_tokens(hass: HomeAssistant, entry: ConfigEntry) -
         raise CardataAuthError("Integration runtime not ready")
     await _refresh_tokens(entry, runtime.session, runtime.stream)
 
-
-async def _async_refresh_on_startup(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    await hass.async_block_till_done()
-    runtime: CardataRuntimeData | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-    if runtime is None:
-        return
-    try:
-        await _refresh_tokens(entry, runtime.session, runtime.stream)
-    except CardataAuthError as err:
-        _LOGGER.warning("Initial token refresh failed: %s", err)
