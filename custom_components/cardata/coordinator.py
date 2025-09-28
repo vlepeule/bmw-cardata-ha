@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
 
 from homeassistant.core import HomeAssistant
@@ -15,8 +15,6 @@ from homeassistant.util import dt as dt_util
 from .const import DEBUG_LOG, DOMAIN, DIAGNOSTIC_LOG_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
-
-_MAX_POWER_STALENESS = timedelta(minutes=5)
 
 
 @dataclass
@@ -35,6 +33,8 @@ class SocTracking:
     last_power_time: Optional[datetime] = None
     charging_active: bool = False
     last_soc_percent: Optional[float] = None
+    estimated_percent: Optional[float] = None
+    last_estimate_time: Optional[datetime] = None
 
     def update_max_energy(self, value: Optional[float]) -> None:
         if value is None:
@@ -51,12 +51,19 @@ class SocTracking:
             self.energy_kwh = self.max_energy_kwh * percent / 100.0
         else:
             self.energy_kwh = None
+        self.estimated_percent = percent
+        self.last_estimate_time = ts
 
     def update_power(self, power_w: Optional[float], timestamp: Optional[datetime]) -> None:
         if power_w is None:
             return
+        target_time = timestamp or datetime.now(timezone.utc)
+        # Advance the running estimate to the moment this power sample was taken
+        # so the previous charging rate is accounted for before we swap in the
+        # new value.
+        self.estimate(target_time)
         self.last_power_w = power_w
-        self.last_power_time = timestamp or datetime.now(timezone.utc)
+        self.last_power_time = target_time
 
     def update_status(self, status: Optional[str]) -> None:
         if status is None:
@@ -64,36 +71,42 @@ class SocTracking:
         self.charging_active = status in {"CHARGINGACTIVE", "CHARGING_IN_PROGRESS"}
 
     def estimate(self, now: datetime) -> Optional[float]:
-        if (
-            not self.charging_active
-            or self.energy_kwh is None
-            or self.max_energy_kwh in (None, 0)
-            or self.last_update is None
-            or self.last_power_w in (None, 0)
-            or self.last_power_time is None
-        ):
-            return None
-        if (now - self.last_power_time) > _MAX_POWER_STALENESS:
-            return None
-        delta_seconds = (now - self.last_update).total_seconds()
-        if delta_seconds <= 0:
-            return None
-        self.energy_kwh += (self.last_power_w * delta_seconds) / 3600.0
-        if self.energy_kwh > self.max_energy_kwh:
-            self.energy_kwh = self.max_energy_kwh
-        self.last_update = now
-        self.last_soc_percent = (self.energy_kwh / self.max_energy_kwh) * 100.0
-        return self.last_soc_percent
+        if self.estimated_percent is None:
+            base = self.last_soc_percent
+            if base is None:
+                return None
+            self.estimated_percent = base
+            self.last_estimate_time = self.last_update or now
+            return self.estimated_percent
 
-    def current_rate_per_hour(self, now: datetime) -> Optional[float]:
+        if self.last_estimate_time is None:
+            self.last_estimate_time = now
+            return self.estimated_percent
+
+        delta_seconds = (now - self.last_estimate_time).total_seconds()
+        if delta_seconds <= 0:
+            return self.estimated_percent
+
+        rate = self.current_rate_per_hour()
+        if not self.charging_active or rate in (None, 0):
+            self.last_estimate_time = now
+            return self.estimated_percent
+
+        increment = rate * (delta_seconds / 3600.0)
+        self.estimated_percent = (self.estimated_percent or 0.0) + increment
+        if self.estimated_percent > 100.0:
+            self.estimated_percent = 100.0
+        elif self.estimated_percent < 0.0:
+            self.estimated_percent = 0.0
+        self.last_estimate_time = now
+        return self.estimated_percent
+
+    def current_rate_per_hour(self) -> Optional[float]:
         if (
             not self.charging_active
             or self.last_power_w in (None, 0)
             or self.max_energy_kwh in (None, 0)
-            or self.last_power_time is None
         ):
-            return None
-        if (now - self.last_power_time) > _MAX_POWER_STALENESS:
             return None
         return (self.last_power_w / 1000.0) / self.max_energy_kwh * 100.0
 
@@ -278,7 +291,7 @@ class CardataCoordinator:
                 async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
             return changed
         percent = tracking.estimate(now)
-        rate = tracking.current_rate_per_hour(now)
+        rate = tracking.current_rate_per_hour()
 
         rate_changed = False
         if rate in (None, 0):
@@ -305,9 +318,6 @@ class CardataCoordinator:
         if notify and updated:
             async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
         return updated
-
-    def get_soc_rates(self) -> Dict[str, float]:
-        return dict(self._soc_rate)
 
     def get_soc_rate(self, vin: str) -> Optional[float]:
         return self._soc_rate.get(vin)
