@@ -78,7 +78,7 @@ class CardataStreamManager:
         client = mqtt.Client(
             client_id=client_id,
             clean_session=True,
-            userdata={"topic": f"{self._gcid}/+/#", "reconnect": False},
+            userdata={"topic": f"{self._gcid}/+", "reconnect": False},
             protocol=mqtt.MQTTv311,
             transport="tcp",
         )
