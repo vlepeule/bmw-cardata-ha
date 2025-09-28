@@ -16,6 +16,8 @@ from .const import DEBUG_LOG, DOMAIN, DIAGNOSTIC_LOG_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
+_MAX_POWER_STALENESS = timedelta(minutes=5)
+
 
 @dataclass
 class DescriptorState:
@@ -68,7 +70,10 @@ class SocTracking:
             or self.max_energy_kwh in (None, 0)
             or self.last_update is None
             or self.last_power_w in (None, 0)
+            or self.last_power_time is None
         ):
+            return None
+        if (now - self.last_power_time) > _MAX_POWER_STALENESS:
             return None
         delta_seconds = (now - self.last_update).total_seconds()
         if delta_seconds <= 0:
@@ -80,12 +85,15 @@ class SocTracking:
         self.last_soc_percent = (self.energy_kwh / self.max_energy_kwh) * 100.0
         return self.last_soc_percent
 
-    def current_rate_per_hour(self) -> Optional[float]:
+    def current_rate_per_hour(self, now: datetime) -> Optional[float]:
         if (
             not self.charging_active
             or self.last_power_w in (None, 0)
             or self.max_energy_kwh in (None, 0)
+            or self.last_power_time is None
         ):
+            return None
+        if (now - self.last_power_time) > _MAX_POWER_STALENESS:
             return None
         return (self.last_power_w / 1000.0) / self.max_energy_kwh * 100.0
 
@@ -101,7 +109,8 @@ class CardataCoordinator:
     last_disconnect_reason: Optional[str] = None
     watchdog_task: Optional[asyncio.Task] = field(default=None, init=False, repr=False)
     _soc_tracking: Dict[str, SocTracking] = field(default_factory=dict, init=False)
-    _soc_rate: Dict[str, Optional[float]] = field(default_factory=dict, init=False)
+    _soc_rate: Dict[str, float] = field(default_factory=dict, init=False)
+    _soc_estimate: Dict[str, float] = field(default_factory=dict, init=False)
 
     @property
     def signal_new_sensor(self) -> str:
@@ -118,6 +127,10 @@ class CardataCoordinator:
     @property
     def signal_diagnostics(self) -> str:
         return f"{DOMAIN}_{self.entry_id}_diagnostics"
+
+    @property
+    def signal_soc_estimate(self) -> str:
+        return f"{DOMAIN}_{self.entry_id}_soc_estimate"
 
     async def async_handle_message(self, payload: Dict[str, Any]) -> None:
         vin = payload.get("vin")
@@ -247,42 +260,57 @@ class CardataCoordinator:
                 self.last_message_at,
             )
         now = datetime.now(timezone.utc)
+        updated_vins: list[str] = []
         for vin in list(self._soc_tracking.keys()):
-            self._apply_soc_estimate(vin, now, dispatcher=False)
+            if self._apply_soc_estimate(vin, now, notify=False):
+                updated_vins.append(vin)
+        for vin in updated_vins:
+            async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
         async_dispatcher_send(self.hass, self.signal_diagnostics)
 
-    def _apply_soc_estimate(self, vin: str, now: datetime, dispatcher: bool = True) -> None:
+    def _apply_soc_estimate(self, vin: str, now: datetime, notify: bool = True) -> bool:
         tracking = self._soc_tracking.get(vin)
         if not tracking:
-            return
+            removed_estimate = self._soc_estimate.pop(vin, None) is not None
+            removed_rate = self._soc_rate.pop(vin, None) is not None
+            changed = removed_estimate or removed_rate
+            if notify and changed:
+                async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
+            return changed
         percent = tracking.estimate(now)
-        rate = tracking.current_rate_per_hour()
-        self._soc_rate[vin] = rate
+        rate = tracking.current_rate_per_hour(now)
+
+        rate_changed = False
+        if rate in (None, 0):
+            if vin in self._soc_rate:
+                self._soc_rate.pop(vin, None)
+                rate_changed = True
+        else:
+            rounded_rate = round(rate, 3)
+            if self._soc_rate.get(vin) != rounded_rate:
+                self._soc_rate[vin] = rounded_rate
+                rate_changed = True
+
+        estimate_changed = False
         if percent is None:
-            return
-        header_descriptor = "vehicle.drivetrain.batteryManagement.header"
-        vehicle_state = self.data.setdefault(vin, {})
-        existing = vehicle_state.get(header_descriptor)
-        current_value = None
-        if existing and existing.value is not None:
-            try:
-                current_value = float(existing.value)
-            except (TypeError, ValueError):
-                current_value = None
-        if current_value is not None and abs(current_value - percent) < 0.1:
-            return
-        timestamp = dt_util.as_utc(now).isoformat()
-        vehicle_state[header_descriptor] = DescriptorState(
-            value=round(percent, 2),
-            unit="percent",
-            timestamp=timestamp,
-        )
-        if dispatcher:
-            async_dispatcher_send(self.hass, self.signal_update, vin, header_descriptor)
+            if vin in self._soc_estimate:
+                self._soc_estimate.pop(vin, None)
+                estimate_changed = True
+        else:
+            rounded_percent = round(percent, 2)
+            if self._soc_estimate.get(vin) != rounded_percent:
+                self._soc_estimate[vin] = rounded_percent
+                estimate_changed = True
+        updated = rate_changed or estimate_changed
+        if notify and updated:
+            async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
+        return updated
 
     def get_soc_rates(self) -> Dict[str, float]:
-        return {
-            vin: round(rate, 3)
-            for vin, rate in self._soc_rate.items()
-            if rate not in (None, 0)
-        }
+        return dict(self._soc_rate)
+
+    def get_soc_rate(self, vin: str) -> Optional[float]:
+        return self._soc_rate.get(vin)
+
+    def get_soc_estimate(self, vin: str) -> Optional[float]:
+        return self._soc_estimate.get(vin)

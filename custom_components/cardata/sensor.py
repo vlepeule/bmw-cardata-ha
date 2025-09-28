@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Dict, Tuple
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -81,13 +85,6 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
         elif sensor_type == "connection_status":
             suffix = "connection_status"
             self._attr_name = "Stream Connection Status"
-        elif sensor_type == "soc_rate":
-            suffix = "soc_rate"
-            self._attr_name = "Stream SOC Rate"
-            self._attr_native_unit_of_measurement = "%/h"
-            self._attr_icon = "mdi:battery-clock"
-            self._attr_state_class = "measurement"
-            self._attr_device_class = None
         else:
             suffix = sensor_type
             self._attr_name = sensor_type
@@ -140,17 +137,88 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
             value = self._coordinator.connection_status
             if value is not None:
                 self._attr_native_value = value
-        elif self._sensor_type == "soc_rate":
-            rates = self._coordinator.get_soc_rates()
-            if rates:
-                self._attr_native_value = next(iter(rates.values()))
-            else:
-                self._attr_native_value = None
         self.schedule_update_ha_state()
 
     @property
     def native_value(self):
         return self._attr_native_value
+
+
+class CardataSocEstimateSensor(CardataEntity, SensorEntity):
+    _attr_should_poll = False
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "%"
+    _attr_icon = "mdi:battery-clock"
+
+    def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
+        super().__init__(coordinator, vin, "soc_estimate")
+        self._attr_name = "Extrapolated SOC"
+        self._unsubscribe = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in ("unknown", "unavailable"):
+            try:
+                self._attr_native_value = float(last_state.state)
+            except (TypeError, ValueError):
+                self._attr_native_value = None
+        self._unsubscribe = async_dispatcher_connect(
+            self.hass,
+            self._coordinator.signal_soc_estimate,
+            self._handle_update,
+        )
+        self._handle_update(self.vin)
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._unsubscribe:
+            self._unsubscribe()
+            self._unsubscribe = None
+
+    def _handle_update(self, vin: str) -> None:
+        if vin != self.vin:
+            return
+        self._attr_native_value = self._coordinator.get_soc_estimate(vin)
+        self.schedule_update_ha_state()
+
+
+class CardataSocRateSensor(CardataEntity, SensorEntity):
+    _attr_should_poll = False
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "%/h"
+    _attr_icon = "mdi:battery-clock"
+
+    def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
+        super().__init__(coordinator, vin, "soc_rate")
+        self._attr_name = "Extrapolated SOC Rate"
+        self._unsubscribe = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in ("unknown", "unavailable"):
+            try:
+                self._attr_native_value = float(last_state.state)
+            except (TypeError, ValueError):
+                self._attr_native_value = None
+        self._unsubscribe = async_dispatcher_connect(
+            self.hass,
+            self._coordinator.signal_soc_estimate,
+            self._handle_update,
+        )
+        self._handle_update(self.vin)
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._unsubscribe:
+            self._unsubscribe()
+            self._unsubscribe = None
+
+    def _handle_update(self, vin: str) -> None:
+        if vin != self.vin:
+            return
+        self._attr_native_value = self._coordinator.get_soc_rate(vin)
+        self.schedule_update_ha_state()
 
 
 async def async_setup_entry(
@@ -160,8 +228,24 @@ async def async_setup_entry(
     coordinator: CardataCoordinator = runtime.coordinator
 
     entities: Dict[Tuple[str, str], CardataSensor] = {}
+    soc_estimate_entities: Dict[str, CardataSocEstimateSensor] = {}
+    soc_rate_entities: Dict[str, CardataSocRateSensor] = {}
+
+    def ensure_soc_tracking_entities(vin: str) -> None:
+        new_entities = []
+        if vin not in soc_estimate_entities:
+            estimate = CardataSocEstimateSensor(coordinator, vin)
+            soc_estimate_entities[vin] = estimate
+            new_entities.append(estimate)
+        if vin not in soc_rate_entities:
+            rate = CardataSocRateSensor(coordinator, vin)
+            soc_rate_entities[vin] = rate
+            new_entities.append(rate)
+        if new_entities:
+            async_add_entities(new_entities, True)
 
     def ensure_entity(vin: str, descriptor: str, *, assume_sensor: bool = False) -> None:
+        ensure_soc_tracking_entities(vin)
         if (vin, descriptor) in entities:
             return
         state = coordinator.get_state(vin, descriptor)
@@ -186,6 +270,13 @@ async def async_setup_entry(
                 entity_id, new_unique_id=new_unique_id
             )
 
+    legacy_soc_rate_unique = f"{entry.entry_id}_diagnostics_soc_rate"
+    legacy_soc_rate_entity = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, legacy_soc_rate_unique
+    )
+    if legacy_soc_rate_entity:
+        entity_registry.async_remove(legacy_soc_rate_entity)
+
     for entity_entry in er.async_entries_for_config_entry(
         entity_registry, entry.entry_id
     ):
@@ -204,6 +295,9 @@ async def async_setup_entry(
     for vin, descriptor in coordinator.iter_descriptors(binary=False):
         ensure_entity(vin, descriptor)
 
+    for vin in list(coordinator.data.keys()):
+        ensure_soc_tracking_entities(vin)
+
     async def async_handle_new(vin: str, descriptor: str) -> None:
         ensure_entity(vin, descriptor)
 
@@ -211,12 +305,19 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, coordinator.signal_new_sensor, async_handle_new)
     )
 
+    async def async_handle_soc_estimate(vin: str) -> None:
+        ensure_soc_tracking_entities(vin)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, coordinator.signal_soc_estimate, async_handle_soc_estimate
+        )
+    )
+
     diagnostic_entities: list[CardataDiagnosticsSensor] = []
     stream_manager = runtime.stream
-    for sensor_type in ("connection_status", "last_message", "soc_rate"):
-        if sensor_type == "soc_rate":
-            unique_id = f"{entry.entry_id}_diagnostics_soc_rate"
-        elif sensor_type == "last_message":
+    for sensor_type in ("connection_status", "last_message"):
+        if sensor_type == "last_message":
             unique_id = f"{entry.entry_id}_diagnostics_last_message"
         else:
             unique_id = f"{entry.entry_id}_diagnostics_connection_status"
