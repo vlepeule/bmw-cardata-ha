@@ -74,24 +74,25 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
         self._entry_id = entry_id
         self._sensor_type = sensor_type
         self._unsub = None
-        unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
-        self._attr_unique_id = f"{entry_id}_diagnostics_{unique_suffix}"
-        self._attr_native_value = None
         if sensor_type == "last_message":
+            suffix = "last_message"
             self._attr_name = "Last Message Received"
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
         elif sensor_type == "connection_status":
+            suffix = "connection_status"
             self._attr_name = "Stream Connection Status"
         elif sensor_type == "soc_rate":
+            suffix = "soc_rate"
             self._attr_name = "Stream SOC Rate"
             self._attr_native_unit_of_measurement = "%/h"
             self._attr_icon = "mdi:battery-clock"
             self._attr_state_class = "measurement"
             self._attr_device_class = None
         else:
+            suffix = sensor_type
             self._attr_name = sensor_type
+        self._attr_unique_id = f"{entry_id}_diagnostics_{suffix}"
 
-    @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             identifiers={(DOMAIN, self._entry_id)},
@@ -212,17 +213,16 @@ async def async_setup_entry(
     diagnostic_entities: list[CardataDiagnosticsSensor] = []
     stream_manager = runtime.stream
     for sensor_type in ("connection_status", "last_message", "soc_rate"):
-        unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
         if sensor_type == "soc_rate":
             unique_id = f"{entry.entry_id}_diagnostics_soc_rate"
+        elif sensor_type == "last_message":
+            unique_id = f"{entry.entry_id}_diagnostics_last_message"
         else:
-            unique_suffix = "last_message" if sensor_type == "last_message" else "connection_status"
-            unique_id = f"{entry.entry_id}_diagnostics_{unique_suffix}"
+            unique_id = f"{entry.entry_id}_diagnostics_connection_status"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
         if entity_id:
-            entity_entry = entity_registry.async_get(entity_id)
-            if entity_entry and entity_entry.disabled_by is not None:
-                continue
+            # Entity already exists in registry; avoid duplicate creation
+            continue
         diagnostic_entities.append(
             CardataDiagnosticsSensor(
                 coordinator,
