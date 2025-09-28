@@ -89,6 +89,9 @@ class CardataStreamManager:
             loop = asyncio.get_running_loop()
             disconnect_future = loop.create_future()
             self._disconnect_future = disconnect_future
+            userdata = getattr(client, "_userdata", None)
+            if isinstance(userdata, dict):
+                userdata["reconnect"] = False
             try:
                 client.disconnect()
             except Exception as err:  # pragma: no cover - defensive logging
@@ -247,7 +250,9 @@ class CardataStreamManager:
                     disconnect_future.set_result(None)
 
             self.hass.loop.call_soon_threadsafe(_set_disconnect)
-        if userdata is not None and isinstance(userdata, dict):
+        should_reconnect = True
+        if isinstance(userdata, dict):
+            should_reconnect = userdata.get("reconnect", True)
             userdata["reconnect"] = True
         if rc in (4, 5):
             now = time.monotonic()
@@ -270,7 +275,8 @@ class CardataStreamManager:
                     self.hass.loop,
                 )
         else:
-            asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
+            if should_reconnect:
+                asyncio.run_coroutine_threadsafe(self._async_reconnect(), self.hass.loop)
             if self._status_callback:
                 asyncio.run_coroutine_threadsafe(
                     self._status_callback("disconnected", reason=reason),
