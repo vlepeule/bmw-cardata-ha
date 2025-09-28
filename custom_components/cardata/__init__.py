@@ -24,6 +24,7 @@ from .const import (
     DEFAULT_REFRESH_INTERVAL,
     DOMAIN,
     MQTT_KEEPALIVE,
+    DIAGNOSTIC_LOG_INTERVAL,
 )
 from .device_flow import CardataAuthError, refresh_tokens
 from .stream import CardataStreamManager
@@ -41,6 +42,8 @@ class CardataRuntimeData:
     coordinator: CardataCoordinator
     reauth_in_progress: bool = False
     reauth_flow_id: str | None = None
+    last_reauth_attempt: float = 0.0
+    last_refresh_attempt: float = 0.0
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -127,7 +130,36 @@ async def _handle_stream_error(hass: HomeAssistant, entry: ConfigEntry, reason: 
         if runtime.reauth_in_progress:
             _LOGGER.debug("Ignoring duplicate unauthorized notification for entry %s", entry.entry_id)
             return
+
+        now = time.time()
+
+        if now - runtime.last_refresh_attempt >= DIAGNOSTIC_LOG_INTERVAL:
+            runtime.last_refresh_attempt = now
+            try:
+                _LOGGER.info(
+                    "Attempting token refresh after unauthorized response for entry %s",
+                    entry.entry_id,
+                )
+                await _refresh_tokens(entry, runtime.session, runtime.stream)
+                runtime.reauth_in_progress = False
+                runtime.last_reauth_attempt = 0.0
+                return
+            except CardataAuthError as err:
+                _LOGGER.warning(
+                    "Token refresh after unauthorized failed for entry %s: %s",
+                    entry.entry_id,
+                    err,
+                )
+
+        if now - runtime.last_reauth_attempt < DIAGNOSTIC_LOG_INTERVAL:
+            _LOGGER.debug(
+                "Recent reauth already attempted for entry %s; skipping new flow",
+                entry.entry_id,
+            )
+            return
+
         runtime.reauth_in_progress = True
+        runtime.last_reauth_attempt = now
         _LOGGER.error("BMW stream unauthorized; starting reauth flow")
         if runtime.reauth_flow_id:
             with suppress(Exception):

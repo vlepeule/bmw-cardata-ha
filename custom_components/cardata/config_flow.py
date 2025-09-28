@@ -153,6 +153,8 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if runtime:
                 runtime.reauth_in_progress = False
                 runtime.reauth_flow_id = None
+                runtime.last_reauth_attempt = 0.0
+                runtime.last_refresh_attempt = 0.0
                 new_token = entry_data.get("id_token")
                 if new_token:
                     self.hass.async_create_task(runtime.stream.async_update_token(new_token))
