@@ -290,6 +290,9 @@ async def async_setup_entry(
         if unique_id.startswith(f"{entry.entry_id}_diagnostics_"):
             continue
         vin, descriptor = unique_id.split("_", 1)
+        if descriptor in {"soc_estimate", "soc_rate"}:
+            ensure_soc_tracking_entities(vin)
+            continue
         ensure_entity(vin, descriptor, assume_sensor=True)
 
     for vin, descriptor in coordinator.iter_descriptors(binary=False):
@@ -322,8 +325,7 @@ async def async_setup_entry(
         else:
             unique_id = f"{entry.entry_id}_diagnostics_connection_status"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
-        if entity_id:
-            # Entity already exists in registry; avoid duplicate creation
+        if entity_id and hass.states.get(entity_id) is not None:
             continue
         diagnostic_entities.append(
             CardataDiagnosticsSensor(
