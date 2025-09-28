@@ -52,6 +52,7 @@ class CardataStreamManager:
         self._reconnect_backoff = 5
         self._max_backoff = 300
         self._last_disconnect: Optional[float] = None
+        self._retry_task: Optional[asyncio.Task] = None
 
     async def async_start(self) -> None:
         await self.hass.async_add_executor_job(self._start_client)
@@ -68,6 +69,7 @@ class CardataStreamManager:
                 self._client.loop_stop(force=True)
                 self._client = None
                 self._last_disconnect = time.monotonic()
+        self._cancel_retry()
 
     @property
     def client(self) -> Optional[mqtt.Client]:
@@ -86,7 +88,7 @@ class CardataStreamManager:
         client = mqtt.Client(
             client_id=client_id,
             clean_session=True,
-            # Subscribe only to direct VIN topics. Do not modify unless API changes.
+            # Subscribe only to direct VIN topics. Do not modify this unless BMW changes the stream contract.
             userdata={"topic": f"{self._gcid}/+"},
             protocol=mqtt.MQTTv311,
             transport="tcp",
@@ -138,12 +140,28 @@ class CardataStreamManager:
                 self._reauth_notified = False
                 self._awaiting_new_credentials = False
                 asyncio.run_coroutine_threadsafe(self._notify_recovered(), self.hass.loop)
+            self._cancel_retry()
+            self._last_disconnect = None
             if self._status_callback:
                 asyncio.run_coroutine_threadsafe(
                     self._status_callback("connected"),
                     self.hass.loop,
                 )
         elif rc in (4, 5):  # bad credentials / not authorized
+            now = time.monotonic()
+            if (
+                rc == 5
+                and self._last_disconnect is not None
+                and now - self._last_disconnect < 10
+            ):
+                if DEBUG_LOG:
+                    _LOGGER.debug(
+                        "BMW MQTT connection refused shortly after disconnect; scheduling retry"
+                    )
+                client.loop_stop(force=True)
+                self._client = None
+                self._schedule_retry(3)
+                return
             _LOGGER.error("BMW MQTT connection failed: rc=%s", rc)
             asyncio.run_coroutine_threadsafe(self._handle_unauthorized(), self.hass.loop)
             client.loop_stop()
@@ -283,3 +301,26 @@ class CardataStreamManager:
 
     async def async_update_token(self, id_token: Optional[str]) -> None:
         await self.async_update_credentials(id_token=id_token)
+
+    def _cancel_retry(self) -> None:
+        if self._retry_task and not self._retry_task.done():
+            self._retry_task.cancel()
+        self._retry_task = None
+
+    def _schedule_retry(self, delay: float) -> None:
+        if self._retry_task is not None and not self._retry_task.done():
+            return
+
+        async def _retry() -> None:
+            try:
+                await asyncio.sleep(delay)
+                if self._client is None:
+                    await self.async_start()
+            except asyncio.CancelledError:
+                return
+            except Exception as err:  # pragma: no cover - defensive logging
+                _LOGGER.error("BMW MQTT retry failed: %s", err)
+            finally:
+                self._retry_task = None
+
+        self._retry_task = self.hass.loop.create_task(_retry())
