@@ -23,7 +23,7 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.trip.segment.accumulated.drivetrain.transmission.setting.fractionDriveEcoPro",
     "vehicle.trip.segment.accumulated.drivetrain.transmission.setting.fractionDriveEcoProPlus",
     "vehicle.powertrain.electric.battery.preconditioning.automaticMode.statusFeedback",
-    "vehicle.vehicle.avgAuxPower",
+    "vehicle.avgAuxPower",
     "vehicle.powertrain.tractionBattery.charging.port.anyPosition.flap.isOpen",
     "vehicle.powertrain.tractionBattery.charging.port.anyPosition.isPlugged",
     "vehicle.drivetrain.electricEngine.charging.timeToFullyCharged",
@@ -46,8 +46,7 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.drivetrain.electricEngine.charging.level",
     "vehicle.powertrain.electric.battery.stateOfHealth.displayed",
     "vehicle.vehicleIdentification.basicVehicleData",
-    "vehicle.drivetrain.batteryManagement.batterySizeMax",
-    "vehicle.drivetrain.electricEngine.hvsMaxEnergyAbsolute"
+    "vehicle.drivetrain.batteryManagement.batterySizeMax"
 ]
 
 #fetch_vehicle_mapping returns data like this:
