@@ -21,7 +21,7 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.drivetrain.electricEngine.charging.acAmpere",
     "vehicle.drivetrain.electricEngine.charging.acVoltage",
     "vehicle.powertrain.electric.battery.preconditioning.automaticMode.statusFeedback",
-    "vehicle.avgAuxPower",
+    "vehicle.vehicle.avgAuxPower",
     "vehicle.powertrain.tractionBattery.charging.port.anyPosition.flap.isOpen",
     "vehicle.powertrain.tractionBattery.charging.port.anyPosition.isPlugged",
     "vehicle.drivetrain.electricEngine.charging.timeToFullyCharged",
@@ -48,4 +48,3 @@ HV_BATTERY_DESCRIPTORS = [
 
 #fetch_vehicle_mapping returns data like this:
 #2025-09-29 18:11:26.340 INFO (MainThread) [custom_components.cardata] Cardata vehicle mappings: [{'mappedSince': '2025-03-27T17:48:41.435Z', 'mappingType': 'PRIMARY', 'vin': 'WBY31AW090FP15359'}, {'mappedSince': '2023-10-10T13:29:38.484Z', 'mappingType': 'PRIMARY', 'vin': 'WBY1Z21020V791850'}]
-
