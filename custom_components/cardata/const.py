@@ -20,8 +20,6 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.drivetrain.batteryManagement.header",
     "vehicle.drivetrain.electricEngine.charging.acAmpere",
     "vehicle.drivetrain.electricEngine.charging.acVoltage",
-    "vehicle.trip.segment.accumulated.drivetrain.transmission.setting.fractionDriveEcoPro",
-    "vehicle.trip.segment.accumulated.drivetrain.transmission.setting.fractionDriveEcoProPlus",
     "vehicle.powertrain.electric.battery.preconditioning.automaticMode.statusFeedback",
     "vehicle.avgAuxPower",
     "vehicle.powertrain.tractionBattery.charging.port.anyPosition.flap.isOpen",
@@ -41,7 +39,7 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.drivetrain.electricEngine.charging.lastChargingResult",
     "vehicle.powertrain.electric.battery.preconditioning.manualMode.statusFeedback",
     "vehicle.drivetrain.electricEngine.charging.reasonChargingEnd",
-    "vehicle.powertrain.electric.battery.stateOfCharge.target"
+    "vehicle.powertrain.electric.battery.stateOfCharge.target",
     "vehicle.body.chargingPort.lockedStatus",
     "vehicle.drivetrain.electricEngine.charging.level",
     "vehicle.powertrain.electric.battery.stateOfHealth.displayed",
