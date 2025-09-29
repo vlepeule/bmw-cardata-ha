@@ -40,6 +40,7 @@ from .const import (
     REQUEST_LOG_VERSION,
     REQUEST_LIMIT,
     REQUEST_WINDOW_SECONDS,
+    TELEMATIC_POLL_INTERVAL,
 )
 from .device_flow import CardataAuthError, refresh_tokens
 from .container import CardataContainerError, CardataContainerManager
@@ -59,6 +60,7 @@ class CardataRuntimeData:
     container_manager: Optional[CardataContainerManager]
     bootstrap_task: asyncio.Task | None = None
     quota_manager: "QuotaManager" | None = None
+    telematic_task: asyncio.Task | None = None
     reauth_in_progress: bool = False
     reauth_flow_id: str | None = None
     last_reauth_attempt: float = 0.0
@@ -251,6 +253,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         container_manager=stored_container_manager,
         bootstrap_task=None,
         quota_manager=quota_manager,
+        telematic_task=None,
         reauth_in_progress=False,
         reauth_flow_id=None,
     )
@@ -303,92 +306,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 return
 
             target_entry_id, target_entry, runtime = resolved
-
-            vin = call.data.get("vin") or target_entry.data.get("vin")
-            if not vin and runtime.coordinator.data:
-                vin = next(iter(runtime.coordinator.data))
-            if not vin:
-                _LOGGER.error(
-                    "Cardata fetch_telematic_data: no VIN available; provide vin parameter"
-                )
-                return
-
-            container_id = target_entry.data.get("hv_container_id")
-            if not container_id:
-                _LOGGER.error(
-                    "Cardata fetch_telematic_data: no container_id stored for entry %s",
-                    target_entry_id,
-                )
-                return
-
-            try:
-                await _refresh_tokens(
-                    target_entry,
-                    runtime.session,
-                    runtime.stream,
-                    runtime.container_manager,
-                )
-            except CardataAuthError as err:
-                _LOGGER.error(
-                    "Cardata fetch_telematic_data: token refresh failed for entry %s: %s",
-                    target_entry_id,
-                    err,
-                )
-                return
-
-            access_token = target_entry.data.get("access_token")
-            if not access_token:
-                _LOGGER.error(
-                    "Cardata fetch_telematic_data: access token missing after refresh"
-                )
-                return
-
-            headers = {
-                "Authorization": f"Bearer {access_token}",
-                "x-version": API_VERSION,
-                "Accept": "application/json",
-            }
-            params = {"containerId": container_id}
-            url = f"{API_BASE_URL}/customers/vehicles/{vin}/telematicData"
-
-            quota = runtime.quota_manager
-            if quota:
-                try:
-                    await quota.async_claim()
-                except CardataQuotaError as err:
-                    _LOGGER.warning(
-                        "Cardata fetch_telematic_data blocked for %s: %s",
-                        vin,
-                        err,
-                    )
-                    return
-
-            try:
-                async with runtime.session.get(url, headers=headers, params=params) as response:
-                    text = await response.text()
-                    if response.status != 200:
-                        _LOGGER.error(
-                            "Cardata fetch_telematic_data: request failed (status=%s) for %s: %s",
-                            response.status,
-                            vin,
-                            text,
-                        )
-                        return
-                    try:
-                        payload = json.loads(text)
-                    except json.JSONDecodeError:
-                        payload = text
-                    _LOGGER.info(
-                        "Cardata telematic data for %s: %s",
-                        vin,
-                        payload,
-                    )
-            except aiohttp.ClientError as err:
-                _LOGGER.error(
-                    "Cardata fetch_telematic_data: network error for %s: %s",
-                    vin,
-                    err,
-                )
+            success = await _async_perform_telematic_fetch(
+                hass,
+                target_entry,
+                runtime,
+                vin_override=call.data.get("vin"),
+            )
+            if success:
+                _async_update_last_telematic_poll(hass, target_entry, time.time())
 
         async def async_handle_fetch_mappings(call) -> None:
             resolved = _resolve_target(call)
@@ -595,6 +520,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _async_run_bootstrap(hass, entry)
         )
 
+    runtime_data.telematic_task = hass.loop.create_task(
+        _telematic_poll_loop(hass, entry.entry_id)
+    )
+
     return True
 
 
@@ -612,6 +541,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data.bootstrap_task.cancel()
         with suppress(asyncio.CancelledError):
             await data.bootstrap_task
+    if data.telematic_task:
+        data.telematic_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await data.telematic_task
     if data.quota_manager:
         await data.quota_manager.async_close()
     await data.stream.async_stop()
@@ -916,6 +849,7 @@ async def _async_run_bootstrap(hass: HomeAssistant, entry: ConfigEntry) -> None:
             vins,
             quota,
         )
+        _async_update_last_telematic_poll(hass, entry, time.time())
     else:
         _LOGGER.debug(
             "Bootstrap did not seed new descriptors for entry %s; basic data fetch skipped",
@@ -1139,3 +1073,143 @@ async def _async_mark_bootstrap_complete(hass: HomeAssistant, entry: ConfigEntry
     updated = dict(entry.data)
     updated[BOOTSTRAP_COMPLETE] = True
     hass.config_entries.async_update_entry(entry, data=updated)
+
+
+async def _async_perform_telematic_fetch(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    runtime: CardataRuntimeData,
+    *,
+    vin_override: Optional[str] = None,
+) -> bool:
+    target_entry_id = entry.entry_id
+    vin = vin_override or entry.data.get("vin")
+    if not vin and runtime.coordinator.data:
+        vin = next(iter(runtime.coordinator.data))
+    if not vin:
+        _LOGGER.error(
+            "Cardata fetch_telematic_data: no VIN available; provide vin parameter"
+        )
+        return False
+
+    container_id = entry.data.get("hv_container_id")
+    if not container_id:
+        _LOGGER.error(
+            "Cardata fetch_telematic_data: no container_id stored for entry %s",
+            target_entry_id,
+        )
+        return False
+
+    try:
+        await _refresh_tokens(
+            entry,
+            runtime.session,
+            runtime.stream,
+            runtime.container_manager,
+        )
+    except CardataAuthError as err:
+        _LOGGER.error(
+            "Cardata fetch_telematic_data: token refresh failed for entry %s: %s",
+            target_entry_id,
+            err,
+        )
+        return False
+
+    access_token = entry.data.get("access_token")
+    if not access_token:
+        _LOGGER.error(
+            "Cardata fetch_telematic_data: access token missing after refresh"
+        )
+        return False
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "x-version": API_VERSION,
+        "Accept": "application/json",
+    }
+    params = {"containerId": container_id}
+    url = f"{API_BASE_URL}/customers/vehicles/{vin}/telematicData"
+
+    quota = runtime.quota_manager
+    if quota:
+        try:
+            await quota.async_claim()
+        except CardataQuotaError as err:
+            _LOGGER.warning(
+                "Cardata fetch_telematic_data blocked for %s: %s",
+                vin,
+                err,
+            )
+            return False
+
+    try:
+        async with runtime.session.get(url, headers=headers, params=params) as response:
+            text = await response.text()
+            if response.status != 200:
+                _LOGGER.error(
+                    "Cardata fetch_telematic_data: request failed (status=%s) for %s: %s",
+                    response.status,
+                    vin,
+                    text,
+                )
+                return True
+            try:
+                payload = json.loads(text)
+            except json.JSONDecodeError:
+                payload = text
+            _LOGGER.info("Cardata telematic data for %s: %s", vin, payload)
+            telematic_payload = None
+            if isinstance(payload, dict):
+                telematic_payload = payload.get("telematicData") or payload.get("data")
+            if isinstance(telematic_payload, dict):
+                await runtime.coordinator.async_handle_message(
+                    {"vin": vin, "data": telematic_payload}
+                )
+    except aiohttp.ClientError as err:
+        _LOGGER.error(
+            "Cardata fetch_telematic_data: network error for %s: %s",
+            vin,
+            err,
+        )
+    return True
+
+
+def _async_update_last_telematic_poll(
+    hass: HomeAssistant, entry: ConfigEntry, timestamp: float
+) -> None:
+    existing = entry.data.get("last_telematic_poll")
+    if existing and abs(existing - timestamp) < 1:
+        return
+    updated = dict(entry.data)
+    updated["last_telematic_poll"] = timestamp
+    hass.config_entries.async_update_entry(entry, data=updated)
+
+
+async def _telematic_poll_loop(hass: HomeAssistant, entry_id: str) -> None:
+    try:
+        while True:
+            entry = hass.config_entries.async_get_entry(entry_id)
+            runtime: CardataRuntimeData | None = (
+                hass.data.get(DOMAIN, {}).get(entry_id)
+                if hass.data.get(DOMAIN)
+                else None
+            )
+            if entry is None or runtime is None:
+                return
+
+            last_poll = entry.data.get("last_telematic_poll", 0.0)
+            now = time.time()
+            wait = TELEMATIC_POLL_INTERVAL - (now - last_poll)
+            if wait > 0:
+                await asyncio.sleep(wait)
+                continue
+
+            await _async_perform_telematic_fetch(
+                hass,
+                entry,
+                runtime,
+            )
+            _async_update_last_telematic_poll(hass, entry, time.time())
+            await asyncio.sleep(TELEMATIC_POLL_INTERVAL)
+    except asyncio.CancelledError:
+        return
