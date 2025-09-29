@@ -20,6 +20,8 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.components import persistent_notification
 
 from .const import (
+    API_BASE_URL,
+    API_VERSION,
     DEFAULT_SCOPE,
     DEFAULT_STREAM_HOST,
     DEFAULT_STREAM_PORT,
