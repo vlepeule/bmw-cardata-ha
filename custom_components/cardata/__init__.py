@@ -530,16 +530,20 @@ async def _refresh_tokens(
     desired_signature = CardataContainerManager.compute_signature(HV_BATTERY_DESCRIPTORS)
 
     if container_manager:
-        container_manager.sync_from_entry(data.get("hv_container_id"))
+        hv_container_id = data.get("hv_container_id")
         stored_signature = data.get("hv_descriptor_signature")
-        should_ensure = (
-            stored_signature != desired_signature or not data.get("hv_container_id")
-        )
+        access_token = data.get("access_token")
 
-        if should_ensure:
+        if hv_container_id and stored_signature == desired_signature:
+            container_manager.sync_from_entry(hv_container_id)
+        elif hv_container_id and stored_signature is None:
+            data["hv_descriptor_signature"] = desired_signature
+            container_manager.sync_from_entry(hv_container_id)
+        else:
+            container_manager.sync_from_entry(None)
             try:
                 container_id = await container_manager.async_ensure_hv_container(
-                    data.get("access_token")
+                    access_token
                 )
             except CardataContainerError as err:
                 _LOGGER.warning(

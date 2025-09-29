@@ -45,7 +45,6 @@ class CardataContainerManager:
         self._lock = asyncio.Lock()
         descriptors = list(dict.fromkeys(HV_BATTERY_DESCRIPTORS))
         self._desired_descriptors = tuple(descriptors)
-        self._desired_descriptor_set = set(descriptors)
         self._descriptor_signature = self.compute_signature(descriptors)
 
     @property
@@ -71,8 +70,7 @@ class CardataContainerManager:
     def sync_from_entry(self, container_id: Optional[str]) -> None:
         """Synchronize the known container id with stored config data."""
 
-        if container_id:
-            self._container_id = container_id
+        self._container_id = container_id
 
     async def async_ensure_hv_container(self, access_token: Optional[str]) -> Optional[str]:
         """Ensure the HV battery container exists and is active."""
@@ -86,95 +84,19 @@ class CardataContainerManager:
             return self._container_id
 
         async with self._lock:
-            allow_reuse = True
-            # Validate cached container id first.
             if self._container_id:
-                details = await self._safe_get_container(access_token, self._container_id)
-                if details and self._is_container_valid(details):
-                    if DEBUG_LOG:
-                        _LOGGER.debug(
-                            "[%s] Using existing HV container %s",
-                            self._entry_id,
-                            self._container_id,
-                        )
-                    return self._container_id
-                if details and self._is_ours(details):
-                    await self._safe_delete_container(access_token, self._container_id)
-                    allow_reuse = False
-                self._container_id = None
-
-            if allow_reuse:
-                containers = await self._safe_list_containers(access_token)
-                for container in containers:
-                    container_id = container.get("containerId")
-                    if not container_id:
-                        continue
-                    details = await self._safe_get_container(access_token, container_id)
-                    if not details:
-                        continue
-                    if not self._matches_descriptors(details):
-                        continue
-                    if details.get("state") == "ACTIVE":
-                        self._container_id = container_id
-                        if DEBUG_LOG:
-                            _LOGGER.debug(
-                                "[%s] Reusing active HV container %s",
-                                self._entry_id,
-                                container_id,
-                            )
-                        return self._container_id
-                    if self._is_ours(details):
-                        await self._safe_delete_container(access_token, container_id)
+                if DEBUG_LOG:
+                    _LOGGER.debug(
+                        "[%s] Using cached HV container %s without validation",
+                        self._entry_id,
+                        self._container_id,
+                    )
+                return self._container_id
 
             created_id = await self._create_container(access_token)
             self._container_id = created_id
             _LOGGER.info("[%s] Created HV battery container %s", self._entry_id, created_id)
             return self._container_id
-
-    async def _safe_list_containers(self, access_token: str) -> Iterable[Dict[str, Any]]:
-        try:
-            payload = await self._request("GET", "/customers/containers", access_token)
-        except CardataContainerError as err:
-            raise CardataContainerError(f"Unable to list containers: {err}", status=err.status) from err
-        containers = payload.get("containers") if isinstance(payload, dict) else None
-        return containers or []
-
-    async def _safe_get_container(
-        self, access_token: str, container_id: str
-    ) -> Optional[Dict[str, Any]]:
-        try:
-            return await self._request(
-                "GET", f"/customers/containers/{container_id}", access_token
-            )
-        except CardataContainerError as err:
-            if err.status in (403, 404):
-                if DEBUG_LOG:
-                    _LOGGER.debug(
-                        "[%s] Container %s not accessible (status=%s)",
-                        self._entry_id,
-                        container_id,
-                        err.status,
-                    )
-                return None
-            raise CardataContainerError(
-                f"Unable to read container {container_id}: {err}", status=err.status
-            ) from err
-
-    async def _safe_delete_container(self, access_token: str, container_id: str) -> None:
-        try:
-            await self._request(
-                "DELETE", f"/customers/containers/{container_id}", access_token
-            )
-        except CardataContainerError as err:
-            if err.status == 404:
-                return
-            raise CardataContainerError(
-                f"Unable to delete container {container_id}: {err}", status=err.status
-            ) from err
-        if DEBUG_LOG:
-            _LOGGER.debug(
-                "[%s] Deleted inactive HV container %s", self._entry_id, container_id
-            )
 
     async def _create_container(self, access_token: str) -> str:
         payload = {
@@ -191,24 +113,6 @@ class CardataContainerManager:
                 "Container creation response missing containerId"
             )
         return container_id
-
-    def _is_container_valid(self, details: Dict[str, Any]) -> bool:
-        return (
-            details.get("state") == "ACTIVE"
-            and self._matches_descriptors(details)
-        )
-
-    def _matches_descriptors(self, details: Dict[str, Any]) -> bool:
-        descriptors = details.get("technicalDescriptors")
-        if not isinstance(descriptors, list):
-            return False
-        return set(descriptors) == self._desired_descriptor_set
-
-    def _is_ours(self, details: Dict[str, Any]) -> bool:
-        return (
-            details.get("name") == HV_BATTERY_CONTAINER_NAME
-            and details.get("purpose") == HV_BATTERY_CONTAINER_PURPOSE
-        )
 
     async def _request(
         self,
