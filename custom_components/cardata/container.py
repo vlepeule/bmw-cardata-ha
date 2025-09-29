@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import hashlib
 from typing import Any, Dict, Iterable, Optional
 
 import aiohttp
@@ -45,12 +46,27 @@ class CardataContainerManager:
         descriptors = list(dict.fromkeys(HV_BATTERY_DESCRIPTORS))
         self._desired_descriptors = tuple(descriptors)
         self._desired_descriptor_set = set(descriptors)
+        self._descriptor_signature = self.compute_signature(descriptors)
 
     @property
     def container_id(self) -> Optional[str]:
         """Return the currently known container identifier."""
 
         return self._container_id
+
+    @property
+    def descriptor_signature(self) -> str:
+        """Return the signature for the desired descriptor set."""
+
+        return self._descriptor_signature
+
+    @staticmethod
+    def compute_signature(descriptors: Iterable[str]) -> str:
+        """Return a stable signature for a descriptor collection."""
+
+        normalized = sorted(dict.fromkeys(descriptors))
+        joined = "|".join(normalized)
+        return hashlib.sha1(joined.encode("utf-8")).hexdigest()
 
     def sync_from_entry(self, container_id: Optional[str]) -> None:
         """Synchronize the known container id with stored config data."""

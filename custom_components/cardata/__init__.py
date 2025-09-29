@@ -29,6 +29,7 @@ from .const import (
     DOMAIN,
     MQTT_KEEPALIVE,
     DIAGNOSTIC_LOG_INTERVAL,
+    HV_BATTERY_DESCRIPTORS,
 )
 from .device_flow import CardataAuthError, refresh_tokens
 from .container import CardataContainerError, CardataContainerManager
@@ -69,13 +70,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Missing GCID or ID token")
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
-    container_manager: Optional[CardataContainerManager] = None
-    if not data.get("hv_container_id"):
-        container_manager = CardataContainerManager(
-            session=session,
-            entry_id=entry.entry_id,
-            initial_container_id=None,
-        )
+    container_manager: Optional[CardataContainerManager] = CardataContainerManager(
+        session=session,
+        entry_id=entry.entry_id,
+        initial_container_id=data.get("hv_container_id"),
+    )
 
     async def handle_stream_error(reason: str) -> None:
         await _handle_stream_error(hass, entry, reason)
@@ -133,7 +132,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _refresh_loop(hass, entry, session, manager, container_manager)
     )
 
-    stored_container_manager = None if entry.data.get("hv_container_id") else container_manager
+    stored_container_manager = container_manager
 
     hass.data[DOMAIN][entry.entry_id] = CardataRuntimeData(
         stream=manager,
@@ -528,25 +527,34 @@ async def _refresh_tokens(
         }
     )
 
+    desired_signature = CardataContainerManager.compute_signature(HV_BATTERY_DESCRIPTORS)
+
     if container_manager:
         container_manager.sync_from_entry(data.get("hv_container_id"))
-        try:
-            container_id = await container_manager.async_ensure_hv_container(
-                data.get("access_token")
-            )
-        except CardataContainerError as err:
-            _LOGGER.warning(
-                "Unable to ensure HV container for entry %s: %s",
-                entry.entry_id,
-                err,
-            )
-        else:
-            if container_id:
-                data["hv_container_id"] = container_id
-                runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-                if runtime:
-                    runtime.container_manager = None
-                container_manager = None
+        stored_signature = data.get("hv_descriptor_signature")
+        should_ensure = (
+            stored_signature != desired_signature or not data.get("hv_container_id")
+        )
+
+        if should_ensure:
+            try:
+                container_id = await container_manager.async_ensure_hv_container(
+                    data.get("access_token")
+                )
+            except CardataContainerError as err:
+                _LOGGER.warning(
+                    "Unable to ensure HV container for entry %s: %s",
+                    entry.entry_id,
+                    err,
+                )
+            else:
+                if container_id:
+                    data["hv_container_id"] = container_id
+                    data["hv_descriptor_signature"] = desired_signature
+                    container_manager.sync_from_entry(container_id)
+                    runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+                    if runtime and runtime.container_manager:
+                        runtime.container_manager.sync_from_entry(container_id)
 
     hass.config_entries.async_update_entry(entry, data=data)
     await manager.async_update_credentials(
