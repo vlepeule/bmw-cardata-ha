@@ -150,7 +150,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not domain_data.get("_service_registered"):
 
-        async def async_handle_fetch(call) -> None:
+        def _resolve_target(call: Any) -> tuple[str, ConfigEntry, CardataRuntimeData] | None:
             entries = {
                 key: value
                 for key, value in hass.data.get(DOMAIN, {}).items()
@@ -163,24 +163,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 target_entry = hass.config_entries.async_get_entry(target_entry_id)
                 if runtime is None or target_entry is None:
                     _LOGGER.error(
-                        "Cardata fetch_telematic_data: unknown entry_id %s",
+                        "Cardata service call: unknown entry_id %s",
                         target_entry_id,
                     )
-                    return
-            else:
-                if len(entries) != 1:
-                    _LOGGER.error(
-                        "Cardata fetch_telematic_data: multiple entries configured; specify entry_id"
-                    )
-                    return
-                target_entry_id, runtime = next(iter(entries.items()))
-                target_entry = hass.config_entries.async_get_entry(target_entry_id)
-                if target_entry is None:
-                    _LOGGER.error(
-                        "Cardata fetch_telematic_data: unable to resolve config entry %s",
-                        target_entry_id,
-                    )
-                    return
+                    return None
+                return target_entry_id, target_entry, runtime
+
+            if len(entries) != 1:
+                _LOGGER.error(
+                    "Cardata service call: multiple entries configured; specify entry_id"
+                )
+                return None
+
+            target_entry_id, runtime = next(iter(entries.items()))
+            target_entry = hass.config_entries.async_get_entry(target_entry_id)
+            if target_entry is None:
+                _LOGGER.error(
+                    "Cardata service call: unable to resolve config entry %s",
+                    target_entry_id,
+                )
+                return None
+
+            return target_entry_id, target_entry, runtime
+
+        async def async_handle_fetch(call) -> None:
+            resolved = _resolve_target(call)
+            if not resolved:
+                return
+
+            target_entry_id, target_entry, runtime = resolved
 
             vin = call.data.get("vin") or target_entry.data.get("vin")
             if not vin and runtime.coordinator.data:
@@ -256,10 +267,72 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     err,
                 )
 
-        service_schema = vol.Schema(
+        async def async_handle_fetch_mappings(call) -> None:
+            resolved = _resolve_target(call)
+            if not resolved:
+                return
+
+            target_entry_id, target_entry, runtime = resolved
+
+            try:
+                await _refresh_tokens(
+                    target_entry,
+                    runtime.session,
+                    runtime.stream,
+                    runtime.container_manager,
+                )
+            except CardataAuthError as err:
+                _LOGGER.error(
+                    "Cardata fetch_vehicle_mappings: token refresh failed for entry %s: %s",
+                    target_entry_id,
+                    err,
+                )
+                return
+
+            access_token = target_entry.data.get("access_token")
+            if not access_token:
+                _LOGGER.error(
+                    "Cardata fetch_vehicle_mappings: access token missing after refresh"
+                )
+                return
+
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "x-version": API_VERSION,
+                "Accept": "application/json",
+            }
+            url = f"{API_BASE_URL}/customers/vehicles/mappings"
+
+            try:
+                async with runtime.session.get(url, headers=headers) as response:
+                    text = await response.text()
+                    if response.status != 200:
+                        _LOGGER.error(
+                            "Cardata fetch_vehicle_mappings: request failed (status=%s): %s",
+                            response.status,
+                            text,
+                        )
+                        return
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        payload = text
+                    _LOGGER.info("Cardata vehicle mappings: %s", payload)
+            except aiohttp.ClientError as err:
+                _LOGGER.error(
+                    "Cardata fetch_vehicle_mappings: network error: %s",
+                    err,
+                )
+
+        telematic_service_schema = vol.Schema(
             {
                 vol.Optional("entry_id"): str,
                 vol.Optional("vin"): str,
+            }
+        )
+        mapping_service_schema = vol.Schema(
+            {
+                vol.Optional("entry_id"): str,
             }
         )
 
@@ -267,8 +340,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DOMAIN,
             "fetch_telematic_data",
             async_handle_fetch,
-            schema=service_schema,
+            schema=telematic_service_schema,
         )
+        hass.services.async_register(
+            DOMAIN,
+            "fetch_vehicle_mappings",
+            async_handle_fetch_mappings,
+            schema=mapping_service_schema,
+        )
+        registered_services = domain_data.setdefault("_registered_services", set())
+        registered_services.update({"fetch_telematic_data", "fetch_vehicle_mappings"})
         domain_data["_service_registered"] = True
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -290,9 +371,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await data.session.close()
     remaining_entries = [k for k in domain_data.keys() if not k.startswith("_")]
     if not remaining_entries:
-        if hass.services.has_service(DOMAIN, "fetch_telematic_data"):
-            hass.services.async_remove(DOMAIN, "fetch_telematic_data")
+        registered_services = domain_data.get("_registered_services", set())
+        for service in list(registered_services):
+            if hass.services.has_service(DOMAIN, service):
+                hass.services.async_remove(DOMAIN, service)
         domain_data.pop("_service_registered", None)
+        domain_data.pop("_registered_services", None)
     if not domain_data or not remaining_entries:
         hass.data.pop(DOMAIN, None)
     return True

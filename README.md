@@ -109,6 +109,13 @@ If BMW rejects the token (e.g. because the portal revoked it), the integration:
 ## Debug Logging
 Set `DEBUG_LOG = True` in `custom_components/cardata/const.py` for detailed MQTT/auth logs (enabled by default). To reduce noise, change it to `False` and reload HA.
 
+## Developer Tools Services
+
+Home Assistant's Developer Tools expose helper services for manual API checks:
+
+- `cardata.fetch_telematic_data` fetches the current contents of the configured telematics container for a VIN and logs the raw payload.
+- `cardata.fetch_vehicle_mappings` calls `GET /customers/vehicles/mappings` and logs the mapping details (including PRIMARY or SECONDARY status). Only primary mappings return data; some vehicles do not support secondary users, in which case the mapped user is considered the primary one.
+
 ## Requirements
 
 - BMW CarData account with streaming access (CarData API + CarData Streaming subscribed in the portal).

@@ -70,6 +70,7 @@ class CardataContainerManager:
             return self._container_id
 
         async with self._lock:
+            allow_reuse = True
             # Validate cached container id first.
             if self._container_id:
                 details = await self._safe_get_container(access_token, self._container_id)
@@ -83,29 +84,31 @@ class CardataContainerManager:
                     return self._container_id
                 if details and self._is_ours(details):
                     await self._safe_delete_container(access_token, self._container_id)
+                    allow_reuse = False
                 self._container_id = None
 
-            containers = await self._safe_list_containers(access_token)
-            for container in containers:
-                container_id = container.get("containerId")
-                if not container_id:
-                    continue
-                details = await self._safe_get_container(access_token, container_id)
-                if not details:
-                    continue
-                if not self._matches_descriptors(details):
-                    continue
-                if details.get("state") == "ACTIVE":
-                    self._container_id = container_id
-                    if DEBUG_LOG:
-                        _LOGGER.debug(
-                            "[%s] Reusing active HV container %s",
-                            self._entry_id,
-                            container_id,
-                        )
-                    return self._container_id
-                if self._is_ours(details):
-                    await self._safe_delete_container(access_token, container_id)
+            if allow_reuse:
+                containers = await self._safe_list_containers(access_token)
+                for container in containers:
+                    container_id = container.get("containerId")
+                    if not container_id:
+                        continue
+                    details = await self._safe_get_container(access_token, container_id)
+                    if not details:
+                        continue
+                    if not self._matches_descriptors(details):
+                        continue
+                    if details.get("state") == "ACTIVE":
+                        self._container_id = container_id
+                        if DEBUG_LOG:
+                            _LOGGER.debug(
+                                "[%s] Reusing active HV container %s",
+                                self._entry_id,
+                                container_id,
+                            )
+                        return self._container_id
+                    if self._is_ours(details):
+                        await self._safe_delete_container(access_token, container_id)
 
             created_id = await self._create_container(access_token)
             self._container_id = created_id

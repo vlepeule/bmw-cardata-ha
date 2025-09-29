@@ -8,3 +8,10 @@ fetch_telematic_data:
     vin:
       description: Optional VIN to query. Defaults to the first VIN seen on the stream.
       example: WBY31AW090FP15359
+fetch_vehicle_mappings:
+  name: Fetch Vehicle Mappings
+  description: Fetch mapping information for the configured account and log the response.
+  fields:
+    entry_id:
+      description: Optional config entry id to target. Required if multiple entries are configured.
+      example: 01K65NKFESKBQZ78PBW6V9BCCX
