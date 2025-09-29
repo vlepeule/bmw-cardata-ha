@@ -30,7 +30,6 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.body.chargingPort.plugEventId",
     "vehicle.drivetrain.electricEngine.charging.phaseNumber",
     "vehicle.trip.segment.end.drivetrain.batteryManagement.hvSoc",
-    "vehicle.drivetrain.batteryManagement.header",
     "vehicle.trip.segment.accumulated.drivetrain.electricEngine.recuperationTotal",
     "vehicle.drivetrain.electricEngine.remainingElectricRange",
     "vehicle.drivetrain.electricEngine.charging.timeRemaining",
