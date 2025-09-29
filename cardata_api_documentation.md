@@ -312,6 +312,8 @@ Not all vehicle models are capable of having secondary users. If there is no suc
 
 Home Assistant users can trigger the `cardata.fetch_vehicle_mappings` developer tool service to call this endpoint and inspect the mapping payload in the logs.
 
+To retrieve static vehicle metadata (brand, model, etc.), use `cardata.fetch_basic_data`, which calls `GET /customers/vehicles/{vin}/basicData` and logs the response.
+
 
 3.3.2 Endpoints: Container management
 CarData offers you four endpoints to manage your containers. The endpoints have the following path:

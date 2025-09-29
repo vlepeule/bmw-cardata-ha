@@ -15,3 +15,13 @@ fetch_vehicle_mappings:
     entry_id:
       description: Optional config entry id to target. Required if multiple entries are configured.
       example: 01K65NKFESKBQZ78PBW6V9BCCX
+fetch_basic_data:
+  name: Fetch Basic Vehicle Data
+  description: Fetch static vehicle metadata (model name, series, etc.) for a VIN and log the response.
+  fields:
+    entry_id:
+      description: Optional config entry id to target. Required if multiple entries are configured.
+      example: 01K65NKFESKBQZ78PBW6V9BCCX
+    vin:
+      description: Optional VIN to query. Defaults to the VIN stored in the config entry.
+      example: WBY31AW090FP15359

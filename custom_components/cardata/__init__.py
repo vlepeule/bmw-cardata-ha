@@ -22,6 +22,7 @@ from homeassistant.components import persistent_notification
 from .const import (
     API_BASE_URL,
     API_VERSION,
+    BASIC_DATA_ENDPOINT,
     DEFAULT_SCOPE,
     DEFAULT_STREAM_HOST,
     DEFAULT_STREAM_PORT,
@@ -185,6 +186,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             return target_entry_id, target_entry, runtime
 
+        async def _resolve_mapping(call) -> tuple[ConfigEntry, CardataRuntimeData] | None:
+            resolved = _resolve_target(call)
+            if not resolved:
+                return None
+            _, target_entry, runtime = resolved
+            return target_entry, runtime
+
         async def async_handle_fetch(call) -> None:
             resolved = _resolve_target(call)
             if not resolved:
@@ -323,15 +331,83 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     err,
                 )
 
+        async def async_handle_fetch_basic_data(call) -> None:
+            resolved = _resolve_target(call)
+            if not resolved:
+                return
+
+            target_entry_id, target_entry, runtime = resolved
+
+            vin = call.data.get("vin") or target_entry.data.get("vin")
+            if not vin:
+                _LOGGER.error(
+                    "Cardata fetch_basic_data: no VIN available; provide vin parameter"
+                )
+                return
+
+            try:
+                await _refresh_tokens(
+                    target_entry,
+                    runtime.session,
+                    runtime.stream,
+                    runtime.container_manager,
+                )
+            except CardataAuthError as err:
+                _LOGGER.error(
+                    "Cardata fetch_basic_data: token refresh failed for entry %s: %s",
+                    target_entry_id,
+                    err,
+                )
+                return
+
+            access_token = target_entry.data.get("access_token")
+            if not access_token:
+                _LOGGER.error(
+                    "Cardata fetch_basic_data: access token missing after refresh"
+                )
+                return
+
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "x-version": API_VERSION,
+                "Accept": "application/json",
+            }
+            url = f"{API_BASE_URL}{BASIC_DATA_ENDPOINT.format(vin=vin)}"
+
+            try:
+                async with runtime.session.get(url, headers=headers) as response:
+                    text = await response.text()
+                    if response.status != 200:
+                        _LOGGER.error(
+                            "Cardata fetch_basic_data: request failed (status=%s) for %s: %s",
+                            response.status,
+                            vin,
+                            text,
+                        )
+                        return
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        payload = text
+                    _LOGGER.info("Cardata basic data for %s: %s", vin, payload)
+            except aiohttp.ClientError as err:
+                _LOGGER.error(
+                    "Cardata fetch_basic_data: network error for %s: %s",
+                    vin,
+                    err,
+                )
+
         telematic_service_schema = vol.Schema(
             {
                 vol.Optional("entry_id"): str,
                 vol.Optional("vin"): str,
             }
         )
-        mapping_service_schema = vol.Schema(
+        mapping_service_schema = vol.Schema({vol.Optional("entry_id"): str})
+        basic_data_service_schema = vol.Schema(
             {
                 vol.Optional("entry_id"): str,
+                vol.Optional("vin"): str,
             }
         )
 
@@ -347,8 +423,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             async_handle_fetch_mappings,
             schema=mapping_service_schema,
         )
+        hass.services.async_register(
+            DOMAIN,
+            "fetch_basic_data",
+            async_handle_fetch_basic_data,
+            schema=basic_data_service_schema,
+        )
         registered_services = domain_data.setdefault("_registered_services", set())
-        registered_services.update({"fetch_telematic_data", "fetch_vehicle_mappings"})
+        registered_services.update(
+            {"fetch_telematic_data", "fetch_vehicle_mappings", "fetch_basic_data"}
+        )
         domain_data["_service_registered"] = True
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
