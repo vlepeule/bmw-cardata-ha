@@ -44,9 +44,9 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 2. Choose **BMW CarData**.
 3. Generate a client ID as described here: https://bmw-cardata.bmwgroup.com/customer/public/api-documentation/Id-Technical-registration_Step-1
 4. Subscribe the client to both scopes: `cardata:api:read` and `cardata:streaming:read`.
-   - If you want the "Extrapolated SOC" helper sensor to work, make sure your telematics container (or the BMW portal selection) includes the descriptors `vehicle.drivetrain.batteryManagement.header`, `vehicle.drivetrain.batteryManagement.maxEnergy`, `vehicle.powertrain.electric.battery.charging.power`, and `vehicle.drivetrain.electricEngine.charging.status`. Those fields let the integration reset the extrapolated state of charge and calculate the charging slope between stream updates.
 5. Scroll to the **Data Selection** section (`Datenauswahl ändern`) and load all descriptors (keep clicking “Load more”).
 6. Check every descriptor you want to stream. To automate this, open the browser console and run:
+   - If you want the "Extrapolated SOC" helper sensor to work, make sure your telematics container includes the descriptors `vehicle.drivetrain.batteryManagement.header`, `vehicle.drivetrain.batteryManagement.maxEnergy`, `vehicle.powertrain.electric.battery.charging.power`, and `vehicle.drivetrain.electricEngine.charging.status`. Those fields let the integration reset the extrapolated state of charge and calculate the charging slope between stream updates.
 
 ```js
 (() => {
