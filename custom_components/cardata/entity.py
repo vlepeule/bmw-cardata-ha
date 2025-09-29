@@ -60,6 +60,9 @@ class CardataEntity(RestoreEntity):
             extra = metadata.get("extra_attributes")
             if extra:
                 attrs.setdefault("vehicle_basic_data", dict(extra))
+            raw = metadata.get("raw_data")
+            if raw:
+                attrs.setdefault("vehicle_basic_data_raw", dict(raw))
         return attrs
 
     @property

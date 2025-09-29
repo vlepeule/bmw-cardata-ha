@@ -426,19 +426,41 @@ class CardataCoordinator:
             or vin
         )
         brand = payload.get("brand") or "BMW"
+        raw_payload = dict(payload)
+        display_attrs: Dict[str, Any] = {
+            "vin": raw_payload.get("vin") or vin,
+            "model_name": model_name,
+            "model_key": raw_payload.get("modelKey"),
+            "series": raw_payload.get("series"),
+            "series_development": raw_payload.get("seriesDevt"),
+            "body_type": raw_payload.get("bodyType"),
+            "color": raw_payload.get("colourDescription") or raw_payload.get("colourCodeRaw"),
+            "country": raw_payload.get("countryCode"),
+            "drive_train": raw_payload.get("driveTrain"),
+            "propulsion_type": raw_payload.get("propulsionType"),
+            "engine_code": raw_payload.get("engine"),
+            "charging_modes": ", ".join(raw_payload.get("chargingModes") or []),
+            "navigation_installed": raw_payload.get("hasNavi"),
+            "sunroof": raw_payload.get("hasSunRoof"),
+            "head_unit": raw_payload.get("headUnit"),
+            "sim_status": raw_payload.get("simStatus"),
+            "construction_date": raw_payload.get("constructionDate"),
+            "special_equipment_codes": raw_payload.get("fullSAList"),
+        }
         metadata: Dict[str, Any] = {
             "name": model_name,
             "manufacturer": brand,
-            "serial_number": payload.get("vin") or vin,
-            "extra_attributes": dict(payload),
+            "serial_number": raw_payload.get("vin") or vin,
+            "extra_attributes": display_attrs,
+            "raw_data": raw_payload,
         }
-        model = payload.get("modelName") or payload.get("series") or payload.get("modelRange")
+        model = raw_payload.get("modelName") or raw_payload.get("series") or raw_payload.get("modelRange")
         if model:
             metadata["model"] = model
-        if payload.get("puStep"):
-            metadata["sw_version"] = payload["puStep"]
-        if payload.get("bodyType"):
-            metadata["hw_version"] = payload["bodyType"]
+        if raw_payload.get("puStep"):
+            metadata["sw_version"] = raw_payload["puStep"]
+        if raw_payload.get("bodyType"):
+            metadata["hw_version"] = raw_payload["bodyType"]
         return metadata
 
     def apply_basic_data(self, vin: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
