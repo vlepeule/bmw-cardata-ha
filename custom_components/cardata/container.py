@@ -147,10 +147,13 @@ class CardataContainerManager:
                 "GET", f"/customers/containers/{container_id}", access_token
             )
         except CardataContainerError as err:
-            if err.status == 404:
+            if err.status in (403, 404):
                 if DEBUG_LOG:
                     _LOGGER.debug(
-                        "[%s] Container %s no longer exists", self._entry_id, container_id
+                        "[%s] Container %s not accessible (status=%s)",
+                        self._entry_id,
+                        container_id,
+                        err.status,
                     )
                 return None
             raise CardataContainerError(
