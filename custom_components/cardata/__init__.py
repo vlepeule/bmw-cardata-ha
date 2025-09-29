@@ -41,6 +41,7 @@ from .const import (
     REQUEST_LIMIT,
     REQUEST_WINDOW_SECONDS,
     TELEMATIC_POLL_INTERVAL,
+    VEHICLE_METADATA,
 )
 from .device_flow import CardataAuthError, refresh_tokens
 from .container import CardataContainerError, CardataContainerManager
@@ -180,6 +181,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Missing GCID or ID token")
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
+    stored_metadata = data.get(VEHICLE_METADATA, {})
+    if isinstance(stored_metadata, dict):
+        device_registry = dr.async_get(hass)
+        for vin, payload in stored_metadata.items():
+            if not isinstance(payload, dict):
+                continue
+            try:
+                metadata = coordinator.apply_basic_data(vin, payload)
+            except Exception:  # pragma: no cover - defensive
+                _LOGGER.debug("Failed to restore metadata for %s", vin, exc_info=True)
+                continue
+            if metadata:
+                device_registry.async_get_or_create(
+                    config_entry_id=entry.entry_id,
+                    identifiers={(DOMAIN, vin)},
+                    manufacturer=metadata.get("manufacturer", "BMW"),
+                    name=metadata.get("name", vin),
+                    model=metadata.get("model"),
+                    sw_version=metadata.get("sw_version"),
+                    hw_version=metadata.get("hw_version"),
+                    serial_number=metadata.get("serial_number"),
+                )
     quota_manager = await QuotaManager.async_create(hass, entry.entry_id)
     container_manager: Optional[CardataContainerManager] = CardataContainerManager(
         session=session,
@@ -1055,6 +1078,8 @@ async def _async_fetch_basic_data_for_vins(
         if not metadata:
             continue
 
+        _async_store_vehicle_metadata(hass, entry, vin, metadata.get("raw_data") or payload)
+
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, vin)},
@@ -1213,3 +1238,22 @@ async def _telematic_poll_loop(hass: HomeAssistant, entry_id: str) -> None:
             await asyncio.sleep(TELEMATIC_POLL_INTERVAL)
     except asyncio.CancelledError:
         return
+
+
+def _async_store_vehicle_metadata(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    vin: str,
+    payload: Dict[str, Any],
+) -> None:
+    existing_metadata = entry.data.get(VEHICLE_METADATA, {})
+    if not isinstance(existing_metadata, dict):
+        existing_metadata = {}
+    current = existing_metadata.get(vin)
+    if current == payload:
+        return
+    updated = dict(entry.data)
+    new_metadata = dict(existing_metadata)
+    new_metadata[vin] = payload
+    updated[VEHICLE_METADATA] = new_metadata
+    hass.config_entries.async_update_entry(entry, data=updated)
