@@ -389,6 +389,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     except json.JSONDecodeError:
                         payload = text
                     _LOGGER.info("Cardata basic data for %s: %s", vin, payload)
+                    if isinstance(payload, dict):
+                        metadata = runtime.coordinator.apply_basic_data(vin, payload)
+                        if metadata:
+                            device_registry = dr.async_get(hass)
+                            device_registry.async_get_or_create(
+                                config_entry_id=entry.entry_id,
+                                identifiers={(DOMAIN, vin)},
+                                manufacturer=metadata.get("manufacturer", "BMW"),
+                                name=metadata.get("name", vin),
+                                model=metadata.get("model"),
+                                sw_version=metadata.get("sw_version"),
+                                hw_version=metadata.get("hw_version"),
+                                serial_number=metadata.get("serial_number"),
+                            )
             except aiohttp.ClientError as err:
                 _LOGGER.error(
                     "Cardata fetch_basic_data: network error for %s: %s",
@@ -919,29 +933,19 @@ async def _async_fetch_basic_data_for_vins(
         if not isinstance(payload, dict):
             continue
 
-        model_name = payload.get("modelName") or payload.get("modelRange") or vin
-        brand = payload.get("brand") or "BMW"
-        coordinator.names[vin] = model_name
-        metadata: Dict[str, Any] = {
-            "name": model_name,
-            "manufacturer": brand,
-        }
-        model = payload.get("modelName") or payload.get("series")
-        if model:
-            metadata["model"] = model
-        if payload.get("puStep"):
-            metadata["sw_version"] = payload["puStep"]
-        if payload.get("bodyType"):
-            metadata["hw_version"] = payload["bodyType"]
-        coordinator.device_metadata[vin] = metadata
+        metadata = coordinator.apply_basic_data(vin, payload)
+        if not metadata:
+            continue
 
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, vin)},
             manufacturer=metadata.get("manufacturer", "BMW"),
-            name=model_name,
+            name=metadata.get("name", vin),
             model=metadata.get("model"),
             sw_version=metadata.get("sw_version"),
+            hw_version=metadata.get("hw_version"),
+            serial_number=metadata.get("serial_number"),
         )
 
 

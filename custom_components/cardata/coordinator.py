@@ -169,10 +169,6 @@ class CardataCoordinator:
         if DEBUG_LOG:
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
 
-        vehicle_name: Optional[str] = None
-
-        vehicle_name: Optional[str] = None
-
         tracking = self._soc_tracking.setdefault(vin, SocTracking())
         now = datetime.now(timezone.utc)
 
@@ -187,7 +183,7 @@ class CardataCoordinator:
             is_new = descriptor not in vehicle_state
             vehicle_state[descriptor] = DescriptorState(value=value, unit=unit, timestamp=timestamp)
             if descriptor == "vehicle.vehicleIdentification.basicVehicleData" and isinstance(value, dict):
-                vehicle_name = value.get("modelName") or value.get("model") or vehicle_name
+                self.apply_basic_data(vin, value)
             if is_new:
                 if isinstance(value, bool):
                     new_binary.append(descriptor)
@@ -220,12 +216,6 @@ class CardataCoordinator:
             async_dispatcher_send(self.hass, self.signal_new_sensor, vin, descriptor)
         for descriptor in new_binary:
             async_dispatcher_send(self.hass, self.signal_new_binary, vin, descriptor)
-
-        if vehicle_name:
-            self.names[vin] = vehicle_name
-
-        if vehicle_name:
-            async_dispatcher_send(self.hass, f"{DOMAIN}_{self.entry_id}_name", vin, vehicle_name)
 
         self._apply_soc_estimate(vin, now)
 
@@ -424,3 +414,46 @@ class CardataCoordinator:
                 tracking.last_power_time = reference_time
             else:
                 self._soc_rate.pop(vin, None)
+
+    @staticmethod
+    def _build_device_metadata(vin: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(payload, dict):
+            return {}
+        model_name = (
+            payload.get("modelName")
+            or payload.get("modelRange")
+            or payload.get("series")
+            or vin
+        )
+        brand = payload.get("brand") or "BMW"
+        metadata: Dict[str, Any] = {
+            "name": model_name,
+            "manufacturer": brand,
+            "serial_number": payload.get("vin") or vin,
+            "extra_attributes": dict(payload),
+        }
+        model = payload.get("modelName") or payload.get("series") or payload.get("modelRange")
+        if model:
+            metadata["model"] = model
+        if payload.get("puStep"):
+            metadata["sw_version"] = payload["puStep"]
+        if payload.get("bodyType"):
+            metadata["hw_version"] = payload["bodyType"]
+        return metadata
+
+    def apply_basic_data(self, vin: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        metadata = self._build_device_metadata(vin, payload)
+        if not metadata:
+            return None
+        self.device_metadata[vin] = metadata
+        new_name = metadata.get("name", vin)
+        name_changed = self.names.get(vin) != new_name
+        self.names[vin] = new_name
+        if name_changed:
+            async_dispatcher_send(
+                self.hass,
+                f"{DOMAIN}_{self.entry_id}_name",
+                vin,
+                new_name,
+            )
+        return metadata

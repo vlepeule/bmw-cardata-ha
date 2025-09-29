@@ -56,6 +56,7 @@ class CardataSensor(CardataEntity, SensorEntity):
         self._handle_update(self.vin, self.descriptor)
 
     async def async_will_remove_from_hass(self) -> None:
+        await super().async_will_remove_from_hass()
         if self._unsubscribe:
             self._unsubscribe()
             self._unsubscribe = None
@@ -163,7 +164,8 @@ class CardataSocEstimateSensor(CardataEntity, SensorEntity):
 
     def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
         super().__init__(coordinator, vin, "soc_estimate")
-        self._attr_name = "Extrapolated SOC"
+        self._base_name = "Extrapolated SOC"
+        self._update_name(write_state=False)
         self._unsubscribe = None
 
     async def async_added_to_hass(self) -> None:
@@ -218,7 +220,8 @@ class CardataSocRateSensor(CardataEntity, SensorEntity):
 
     def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
         super().__init__(coordinator, vin, "soc_rate")
-        self._attr_name = "Extrapolated SOC Rate"
+        self._base_name = "Extrapolated SOC Rate"
+        self._update_name(write_state=False)
         self._unsubscribe = None
 
     async def async_added_to_hass(self) -> None:
