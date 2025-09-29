@@ -125,6 +125,7 @@ class CardataCoordinator:
     entry_id: str
     data: Dict[str, Dict[str, DescriptorState]] = field(default_factory=dict)
     names: Dict[str, str] = field(default_factory=dict)
+    device_metadata: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     last_message_at: Optional[datetime] = None
     connection_status: str = "connecting"
     last_disconnect_reason: Optional[str] = None

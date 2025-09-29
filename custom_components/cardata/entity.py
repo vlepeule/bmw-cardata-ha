@@ -22,12 +22,21 @@ class CardataEntity(RestoreEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        name = self._coordinator.names.get(self._vin, self._vin)
-        return {
+        metadata = self._coordinator.device_metadata.get(self._vin, {})
+        name = metadata.get("name") or self._coordinator.names.get(self._vin, self._vin)
+        manufacturer = metadata.get("manufacturer", "BMW")
+        info: DeviceInfo = {
             "identifiers": {(DOMAIN, self._vin)},
-            "manufacturer": "BMW",
+            "manufacturer": manufacturer,
             "name": name,
         }
+        if model := metadata.get("model"):
+            info["model"] = model
+        if sw_version := metadata.get("sw_version"):
+            info["sw_version"] = sw_version
+        if hw_version := metadata.get("hw_version"):
+            info["hw_version"] = hw_version
+        return info
 
     @property
     def available(self) -> bool:
