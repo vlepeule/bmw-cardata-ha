@@ -6,9 +6,11 @@ import asyncio
 import json
 import logging
 import time
+from collections import deque
+from datetime import datetime, timezone
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional
 
 import aiohttp
 import voluptuous as vol
@@ -18,6 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from homeassistant.components import persistent_notification
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
@@ -33,6 +36,10 @@ from .const import (
     DIAGNOSTIC_LOG_INTERVAL,
     HV_BATTERY_DESCRIPTORS,
     BOOTSTRAP_COMPLETE,
+    REQUEST_LOG,
+    REQUEST_LOG_VERSION,
+    REQUEST_LIMIT,
+    REQUEST_WINDOW_SECONDS,
 )
 from .device_flow import CardataAuthError, refresh_tokens
 from .container import CardataContainerError, CardataContainerManager
@@ -51,12 +58,108 @@ class CardataRuntimeData:
     coordinator: CardataCoordinator
     container_manager: Optional[CardataContainerManager]
     bootstrap_task: asyncio.Task | None = None
+    quota_manager: "QuotaManager" | None = None
     reauth_in_progress: bool = False
     reauth_flow_id: str | None = None
     last_reauth_attempt: float = 0.0
     last_refresh_attempt: float = 0.0
     reauth_pending: bool = False
 
+
+class CardataQuotaError(Exception):
+    """Raised when API quota would be exceeded."""
+
+
+class QuotaManager:
+    """Manage the rolling 24 hour request quota."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry_id: str,
+        store: Store,
+        timestamps: Deque[float],
+    ) -> None:
+        self._hass = hass
+        self._entry_id = entry_id
+        self._store = store
+        self._timestamps: Deque[float] = timestamps
+        self._lock = asyncio.Lock()
+
+    @classmethod
+    async def async_create(cls, hass: HomeAssistant, entry_id: str) -> "QuotaManager":
+        store = Store(hass, REQUEST_LOG_VERSION, f"{DOMAIN}_{entry_id}_{REQUEST_LOG}")
+        data = await store.async_load() or {}
+        raw_timestamps = data.get("timestamps", [])
+        values: List[float] = []
+        for item in raw_timestamps:
+            value: Optional[float] = None
+            if isinstance(item, (int, float)):
+                value = float(item)
+            elif isinstance(item, str):
+                try:
+                    value = float(item)
+                except (TypeError, ValueError):
+                    try:
+                        value = datetime.fromisoformat(item.replace("Z", "+00:00")).timestamp()
+                    except (TypeError, ValueError):
+                        value = None
+            if value is None:
+                continue
+            values.append(value)
+        normalized: Deque[float] = deque(sorted(values))
+        manager = cls(hass, entry_id, store, normalized)
+        async with manager._lock:
+            manager._prune(time.time())
+            await manager._async_save_locked()
+        return manager
+
+    def _prune(self, now: float) -> None:
+        cutoff = now - REQUEST_WINDOW_SECONDS
+        while self._timestamps and self._timestamps[0] <= cutoff:
+            self._timestamps.popleft()
+
+    async def async_claim(self) -> None:
+        async with self._lock:
+            now = time.time()
+            self._prune(now)
+            if len(self._timestamps) >= REQUEST_LIMIT:
+                raise CardataQuotaError(
+                    "BMW CarData API limit reached; try again after quota resets"
+                )
+            self._timestamps.append(now)
+            await self._async_save_locked()
+
+    @property
+    def used(self) -> int:
+        self._prune(time.time())
+        return len(self._timestamps)
+
+    @property
+    def remaining(self) -> int:
+        return max(0, REQUEST_LIMIT - self.used)
+
+    @property
+    def next_reset_epoch(self) -> Optional[float]:
+        self._prune(time.time())
+        if len(self._timestamps) < REQUEST_LIMIT:
+            return None
+        return self._timestamps[0] + REQUEST_WINDOW_SECONDS
+
+    @property
+    def next_reset_iso(self) -> Optional[str]:
+        ts = self.next_reset_epoch
+        if ts is None:
+            return None
+        return datetime.fromtimestamp(ts, timezone.utc).isoformat()
+
+    async def async_close(self) -> None:
+        async with self._lock:
+            self._prune(time.time())
+            await self._async_save_locked()
+
+    async def _async_save_locked(self) -> None:
+        await self._store.async_save({"timestamps": list(self._timestamps)})
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     domain_data = hass.data.setdefault(DOMAIN, {})
@@ -75,6 +178,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Missing GCID or ID token")
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
+    quota_manager = await QuotaManager.async_create(hass, entry.entry_id)
     container_manager: Optional[CardataContainerManager] = CardataContainerManager(
         session=session,
         entry_id=entry.entry_id,
@@ -146,6 +250,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator=coordinator,
         container_manager=stored_container_manager,
         bootstrap_task=None,
+        quota_manager=quota_manager,
         reauth_in_progress=False,
         reauth_flow_id=None,
     )
@@ -246,6 +351,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             params = {"containerId": container_id}
             url = f"{API_BASE_URL}/customers/vehicles/{vin}/telematicData"
 
+            quota = runtime.quota_manager
+            if quota:
+                try:
+                    await quota.async_claim()
+                except CardataQuotaError as err:
+                    _LOGGER.warning(
+                        "Cardata fetch_telematic_data blocked for %s: %s",
+                        vin,
+                        err,
+                    )
+                    return
+
             try:
                 async with runtime.session.get(url, headers=headers, params=params) as response:
                     text = await response.text()
@@ -308,6 +425,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "Accept": "application/json",
             }
             url = f"{API_BASE_URL}/customers/vehicles/mappings"
+
+            quota = runtime.quota_manager
+            if quota:
+                try:
+                    await quota.async_claim()
+                except CardataQuotaError as err:
+                    _LOGGER.warning(
+                        "Cardata fetch_vehicle_mappings blocked: %s",
+                        err,
+                    )
+                    return
 
             try:
                 async with runtime.session.get(url, headers=headers) as response:
@@ -372,6 +500,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "Accept": "application/json",
             }
             url = f"{API_BASE_URL}{BASIC_DATA_ENDPOINT.format(vin=vin)}"
+
+            quota = runtime.quota_manager
+            if quota:
+                try:
+                    await quota.async_claim()
+                except CardataQuotaError as err:
+                    _LOGGER.warning(
+                        "Cardata fetch_basic_data blocked for %s: %s",
+                        vin,
+                        err,
+                    )
+                    return
 
             try:
                 async with runtime.session.get(url, headers=headers) as response:
@@ -472,6 +612,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         data.bootstrap_task.cancel()
         with suppress(asyncio.CancelledError):
             await data.bootstrap_task
+    if data.quota_manager:
+        await data.quota_manager.async_close()
     await data.stream.async_stop()
     await data.session.close()
     remaining_entries = [k for k in domain_data.keys() if not k.startswith("_")]
@@ -696,6 +838,8 @@ async def _async_run_bootstrap(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     _LOGGER.debug("Starting bootstrap sequence for entry %s", entry.entry_id)
 
+    quota = runtime.quota_manager
+
     try:
         await _refresh_tokens(
             entry,
@@ -726,7 +870,12 @@ async def _async_run_bootstrap(hass: HomeAssistant, entry: ConfigEntry) -> None:
         "Accept": "application/json",
     }
 
-    vins = await _async_fetch_primary_vins(runtime.session, headers, entry.entry_id)
+    vins = await _async_fetch_primary_vins(
+        runtime.session,
+        headers,
+        entry.entry_id,
+        quota,
+    )
     if not vins:
         await _async_mark_bootstrap_complete(hass, entry)
         return
@@ -751,6 +900,7 @@ async def _async_run_bootstrap(hass: HomeAssistant, entry: ConfigEntry) -> None:
             headers,
             container_id,
             vins,
+            quota,
         )
     else:
         _LOGGER.debug(
@@ -764,6 +914,7 @@ async def _async_run_bootstrap(hass: HomeAssistant, entry: ConfigEntry) -> None:
             entry,
             headers,
             vins,
+            quota,
         )
     else:
         _LOGGER.debug(
@@ -778,8 +929,19 @@ async def _async_fetch_primary_vins(
     session: aiohttp.ClientSession,
     headers: Dict[str, str],
     entry_id: str,
+    quota: QuotaManager | None,
 ) -> List[str]:
     url = f"{API_BASE_URL}/customers/vehicles/mappings"
+    if quota:
+        try:
+            await quota.async_claim()
+        except CardataQuotaError as err:
+            _LOGGER.warning(
+                "Bootstrap mapping request skipped for entry %s: %s",
+                entry_id,
+                err,
+            )
+            return []
     try:
         async with session.get(url, headers=headers) as response:
             text = await response.text()
@@ -839,6 +1001,7 @@ async def _async_seed_telematic_data(
     headers: Dict[str, str],
     container_id: str,
     vins: List[str],
+    quota: QuotaManager | None,
 ) -> bool:
     session = runtime.session
     coordinator = runtime.coordinator
@@ -848,6 +1011,16 @@ async def _async_seed_telematic_data(
     for vin in vins:
         if coordinator.data.get(vin):
             continue
+        if quota:
+            try:
+                await quota.async_claim()
+            except CardataQuotaError as err:
+                _LOGGER.warning(
+                    "Bootstrap telematic request skipped for %s: %s",
+                    vin,
+                    err,
+                )
+                break
         url = f"{API_BASE_URL}/customers/vehicles/{vin}/telematicData"
         try:
             async with session.get(url, headers=headers, params=params) as response:
@@ -894,6 +1067,7 @@ async def _async_fetch_basic_data_for_vins(
     entry: ConfigEntry,
     headers: Dict[str, str],
     vins: List[str],
+    quota: QuotaManager | None,
 ) -> None:
     runtime: CardataRuntimeData = hass.data[DOMAIN][entry.entry_id]
     session = runtime.session
@@ -902,6 +1076,16 @@ async def _async_fetch_basic_data_for_vins(
 
     for vin in vins:
         url = f"{API_BASE_URL}{BASIC_DATA_ENDPOINT.format(vin=vin)}"
+        if quota:
+            try:
+                await quota.async_claim()
+            except CardataQuotaError as err:
+                _LOGGER.warning(
+                    "Bootstrap basic data request skipped for %s: %s",
+                    vin,
+                    err,
+                )
+                break
         try:
             async with session.get(url, headers=headers) as response:
                 text = await response.text()

@@ -83,11 +83,13 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
         stream_manager,
         entry_id: str,
         sensor_type: str,
+        quota_manager,
     ) -> None:
         self._coordinator = coordinator
         self._stream = stream_manager
         self._entry_id = entry_id
         self._sensor_type = sensor_type
+        self._quota = quota_manager
         self._unsub = None
         if sensor_type == "last_message":
             suffix = "last_message"
@@ -116,6 +118,11 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
         attrs = dict(self._stream.debug_info)
         if self._coordinator.last_disconnect_reason:
             attrs["last_disconnect_reason"] = self._coordinator.last_disconnect_reason
+        if self._quota:
+            attrs["api_quota_used"] = self._quota.used
+            attrs["api_quota_remaining"] = self._quota.remaining
+            if next_reset := self._quota.next_reset_iso:
+                attrs["api_quota_next_reset"] = next_reset
         return attrs
 
     async def async_added_to_hass(self) -> None:
@@ -380,6 +387,7 @@ async def async_setup_entry(
                 stream_manager,
                 entry.entry_id,
                 sensor_type,
+                runtime.quota_manager,
             )
         )
 
