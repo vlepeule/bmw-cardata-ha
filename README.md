@@ -5,7 +5,10 @@
 # BimmerData Streamline (BMW CarData for Home Assistant)
 
 ## This is experimental. 
-Wait for the core integration to get fixed if you want stable experience but if you want to help, keep reporting the bugs and I'll take a look! :) The Beta branch is used as a day to day development branch and can contain completely broken stuff. The main branch is updated when I feel that it works well enough and has something new. However, the integration currently lacks proper testing and I also need to keep my own automations running so not everything is tested on every release and there's a possibility that something works on my instance, since I already had something installed. Create an issue if you have problems when making a clean install. 
+I'm developing this on my free time with personal use cases as highest priority. Main goal was to get it running ASAP when BMW killed the old API, so the code quality wasn't priority at all. So far the plugin has been surprisingly stable even after bigger (AI Agent assisted) edits, but there's always a risk that something falls through, due to nonexistent automatic testing and me not doing a completely fresh install every time I test a new feature.
+
+
+The Beta branch is used as a day to day development branch and can contain completely broken stuff. The main branch is updated when I feel that it works well enough and has something worth to publish.
 
 
 ## Release Notes: 
