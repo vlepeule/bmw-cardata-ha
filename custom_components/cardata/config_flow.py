@@ -199,45 +199,39 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         self._config_entry = config_entry
 
     async def async_step_init(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
+        return self.async_show_menu(
+            step_id="init",
+            menu_options={
+                "overrides": "Edit overrides",
+                "action_refresh_tokens": "Refresh tokens",
+                "action_reauth": "Start device authorization again",
+                "action_fetch_mappings": "Initiate vehicles (API)",
+                "action_fetch_basic": "Get basic vehicle information (API)",
+                "action_fetch_telematic": "Get telematics data (API)",
+            },
+        )
+
+    async def async_step_overrides(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         if user_input is not None:
             overrides, errors = self._parse_overrides(user_input)
             if errors:
                 return self.async_show_form(
-                    step_id="init",
-                    data_schema=self._build_schema(),
+                    step_id="overrides",
+                    data_schema=self._build_overrides_schema(),
                     errors=errors,
                 )
-
-            overrides_changed = self._apply_overrides(overrides)
-
-            action = user_input.get("action", "apply_overrides")
-            if action == "reauth":
-                if overrides_changed:
-                    self.hass.config_entries.async_schedule_reload(self._config_entry.entry_id)
-                return await self._handle_reauth()
-
-            if action == "refresh_tokens":
-                result = await self._handle_refresh_tokens()
-            elif action == "fetch_mappings":
-                result = await self._handle_fetch_mappings()
-            elif action == "fetch_basic_data":
-                result = await self._handle_fetch_basic_data()
-            elif action == "fetch_telematic":
-                result = await self._handle_fetch_telematic()
-            else:
-                result = self.async_create_entry(title="", data={})
-
-            if overrides_changed:
+            changed = self._apply_overrides(overrides)
+            if changed:
                 self.hass.config_entries.async_schedule_reload(self._config_entry.entry_id)
-
-            return result
+            return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
-            step_id="init",
-            data_schema=self._build_schema(),
+            step_id="overrides",
+            data_schema=self._build_overrides_schema(),
+            description="Leave fields blank to use the default values from the integration.",
         )
 
-    def _build_schema(self) -> vol.Schema:
+    def _build_overrides_schema(self) -> vol.Schema:
         options = self._config_entry.options or {}
         keepalive_default = str(options.get(OPTION_MQTT_KEEPALIVE, ""))
         diagnostic_default = str(options.get(OPTION_DIAGNOSTIC_INTERVAL, ""))
@@ -250,27 +244,8 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
             debug_choice = "default"
         return vol.Schema(
             {
-                vol.Required(
-                    "action",
-                    default="apply_overrides",
-                ): vol.In(
-                    {
-                        "apply_overrides": "Save overrides only",
-                        "refresh_tokens": "Refresh tokens",
-                        "reauth": "Start device authorization again",
-                        "fetch_mappings": "Initiate vehicles (API)",
-                        "fetch_basic_data": "Get basic vehicle information (API)",
-                        "fetch_telematic": "Get telematics data (API)",
-                    }
-                ),
-                vol.Optional(
-                    "mqtt_keepalive",
-                    default=keepalive_default,
-                ): str,
-                vol.Optional(
-                    "diagnostic_log_interval",
-                    default=diagnostic_default,
-                ): str,
+                vol.Optional("mqtt_keepalive", default=keepalive_default): str,
+                vol.Optional("diagnostic_log_interval", default=diagnostic_default): str,
                 vol.Optional(
                     "debug_log",
                     default=debug_choice,
@@ -323,7 +298,7 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         return overrides, errors
 
     def _apply_overrides(self, overrides: Dict[str, Any]) -> bool:
-        options = dict(self._config_entry.options)
+        options = dict(self._config_entry.options or {})
         changed = False
         for key, value in overrides.items():
             if value is None:
@@ -338,16 +313,164 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
             self.hass.config_entries.async_update_entry(self._config_entry, options=options)
         return changed
 
-    async def _handle_refresh_tokens(self) -> FlowResult:
+    def _confirm_schema(self) -> vol.Schema:
+        return vol.Schema({vol.Required("confirm", default=False): bool})
+
+    def _show_confirm(
+        self,
+        *,
+        step_id: str,
+        description: str,
+        errors: Optional[Dict[str, str]] = None,
+        placeholders: Optional[Dict[str, Any]] = None,
+    ) -> FlowResult:
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self._confirm_schema(),
+            errors=errors,
+            description=description,
+            description_placeholders=placeholders,
+        )
+
+    def _get_runtime(self):
+        return self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+
+    async def async_step_action_refresh_tokens(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        description = "Refresh stored tokens now?"
+        if user_input is None:
+            return self._show_confirm(step_id="action_refresh_tokens", description=description)
+        if not user_input.get("confirm"):
+            return self._show_confirm(
+                step_id="action_refresh_tokens",
+                description=description,
+                errors={"confirm": "confirm"},
+            )
         try:
             await async_manual_refresh_tokens(self.hass, self._config_entry)
         except CardataAuthError as err:
-            return self.async_show_form(
-                step_id="init",
-                data_schema=self._build_schema(),
+            return self._show_confirm(
+                step_id="action_refresh_tokens",
+                description=description,
                 errors={"base": "refresh_failed"},
-                description_placeholders={"error": str(err)},
+                placeholders={"error": str(err)},
             )
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_action_reauth(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        description = "This will clear stored credentials and restart the authorization flow."
+        if user_input is None:
+            return self._show_confirm(step_id="action_reauth", description=description)
+        if not user_input.get("confirm"):
+            return self._show_confirm(
+                step_id="action_reauth",
+                description=description,
+                errors={"confirm": "confirm"},
+            )
+        return await self._handle_reauth()
+
+    async def async_step_action_fetch_mappings(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        description = "Call the vehicles mapping API now?"
+        runtime = self._get_runtime()
+        if runtime is None:
+            return self._show_confirm(
+                step_id="action_fetch_mappings",
+                description=description,
+                errors={"base": "runtime_missing"},
+            )
+        if user_input is None:
+            return self._show_confirm(step_id="action_fetch_mappings", description=description)
+        if not user_input.get("confirm"):
+            return self._show_confirm(
+                step_id="action_fetch_mappings",
+                description=description,
+                errors={"confirm": "confirm"},
+            )
+        await self.hass.services.async_call(
+            DOMAIN,
+            "fetch_vehicle_mappings",
+            {"entry_id": self._config_entry.entry_id},
+            blocking=True,
+        )
+        return self.async_create_entry(title="", data={})
+
+    def _collect_vins(self) -> list[str]:
+        runtime = self._get_runtime()
+        vins = set()
+        if runtime:
+            vins.update(runtime.coordinator.data.keys())
+        metadata = self._config_entry.data.get(VEHICLE_METADATA)
+        if isinstance(metadata, dict):
+            vins.update(metadata.keys())
+        if entry_vin := self._config_entry.data.get("vin"):
+            vins.add(entry_vin)
+        return [vin for vin in vins if isinstance(vin, str)]
+
+    async def async_step_action_fetch_basic(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        description = "Call the basic vehicle information API for all known VINs?"
+        runtime = self._get_runtime()
+        if runtime is None:
+            return self._show_confirm(
+                step_id="action_fetch_basic",
+                description=description,
+                errors={"base": "runtime_missing"},
+            )
+        vins = self._collect_vins()
+        if not vins:
+            return self._show_confirm(
+                step_id="action_fetch_basic",
+                description=description,
+                errors={"base": "no_vins"},
+            )
+        if user_input is None:
+            return self._show_confirm(step_id="action_fetch_basic", description=description)
+        if not user_input.get("confirm"):
+            return self._show_confirm(
+                step_id="action_fetch_basic",
+                description=description,
+                errors={"confirm": "confirm"},
+            )
+        for vin in sorted(vins):
+            await self.hass.services.async_call(
+                DOMAIN,
+                "fetch_basic_data",
+                {"entry_id": self._config_entry.entry_id, "vin": vin},
+                blocking=True,
+            )
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_action_fetch_telematic(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        description = "Call the telematics API now?"
+        runtime = self._get_runtime()
+        if runtime is None:
+            return self._show_confirm(
+                step_id="action_fetch_telematic",
+                description=description,
+                errors={"base": "runtime_missing"},
+            )
+        if user_input is None:
+            return self._show_confirm(step_id="action_fetch_telematic", description=description)
+        if not user_input.get("confirm"):
+            return self._show_confirm(
+                step_id="action_fetch_telematic",
+                description=description,
+                errors={"confirm": "confirm"},
+            )
+        await self.hass.services.async_call(
+            DOMAIN,
+            "fetch_telematic_data",
+            {"entry_id": self._config_entry.entry_id},
+            blocking=True,
+        )
         return self.async_create_entry(title="", data={})
 
     async def _handle_reauth(self) -> FlowResult:
@@ -375,77 +498,8 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
             context={"source": config_entries.SOURCE_REAUTH},
             data={"client_id": entry.data.get("client_id"), "entry_id": entry.entry_id},
         )
-        await self.hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": config_entries.SOURCE_REAUTH},
-            data={"client_id": entry.data.get("client_id"), "entry_id": entry.entry_id},
-        )
         return self.async_abort(reason="reauth_started")
 
-    async def _handle_fetch_mappings(self) -> FlowResult:
-        runtime = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
-        if runtime is None:
-            return self.async_show_form(
-                step_id="init",
-                data_schema=self._build_schema(),
-                errors={"base": "runtime_missing"},
-            )
-        await self.hass.services.async_call(
-            DOMAIN,
-            "fetch_vehicle_mappings",
-            {"entry_id": self._config_entry.entry_id},
-            blocking=True,
-        )
-        return self.async_create_entry(title="", data={})
-
-    async def _handle_fetch_telematic(self) -> FlowResult:
-        runtime = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
-        if runtime is None:
-            return self.async_show_form(
-                step_id="init",
-                data_schema=self._build_schema(),
-                errors={"base": "runtime_missing"},
-            )
-        await self.hass.services.async_call(
-            DOMAIN,
-            "fetch_telematic_data",
-            {"entry_id": self._config_entry.entry_id},
-            blocking=True,
-        )
-        return self.async_create_entry(title="", data={})
-
-    async def _handle_fetch_basic_data(self) -> FlowResult:
-        runtime = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
-        if runtime is None:
-            return self.async_show_form(
-                step_id="init",
-                data_schema=self._build_schema(),
-                errors={"base": "runtime_missing"},
-            )
-
-        vins = set()
-        vins.update(runtime.coordinator.data.keys())
-        metadata = self._config_entry.data.get(VEHICLE_METADATA)
-        if isinstance(metadata, dict):
-            vins.update(metadata.keys())
-        if (entry_vin := self._config_entry.data.get("vin")):
-            vins.add(entry_vin)
-        if not vins:
-            return self.async_show_form(
-                step_id="init",
-                data_schema=self._build_schema(),
-                errors={"base": "no_vins"},
-            )
-
-        for vin in sorted(v for v in vins if isinstance(v, str)):
-            await self.hass.services.async_call(
-                DOMAIN,
-                "fetch_basic_data",
-                {"entry_id": self._config_entry.entry_id, "vin": vin},
-                blocking=True,
-            )
-
-        return self.async_create_entry(title="", data={})
 
 
 async def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
