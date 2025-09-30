@@ -17,12 +17,17 @@
   "options": {
     "step": {
       "init": {
-        "title": "Manual token refresh",
-        "description": "Click Submit to request fresh tokens without running the full login flow."
+        "title": "Manual actions",
+        "description": "Select the action you want to run. Refresh tokens tries to just refresh the tokens without reauth. We suggest restarting HA after that if you have problems."
       }
     },
     "error": {
-      "refresh_failed": "Token refresh failed: {error}"
+      "refresh_failed": "Token refresh failed: {error}",
+      "runtime_missing": "Integration runtime is not ready. Try again after setup completes.",
+      "no_vins": "No VINs are known yet. Wait for the stream to discover a vehicle or trigger it once manually."
+    },
+    "abort": {
+      "reauth_started": "Authorization restarted. Complete the new login flow from the notification."
     }
   }
 }

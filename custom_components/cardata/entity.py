@@ -10,6 +10,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import DOMAIN
 from .coordinator import CardataCoordinator
+from .descriptor_titles import DESCRIPTOR_TITLES
 
 
 class CardataEntity(RestoreEntity):
@@ -74,6 +75,8 @@ class CardataEntity(RestoreEntity):
         return self._vin
 
     def _format_name(self) -> str:
+        if self._descriptor in DESCRIPTOR_TITLES:
+            return DESCRIPTOR_TITLES[self._descriptor]
         parts = [
             p
             for p in self._descriptor.replace("_", " ").replace(".", " ").split()
