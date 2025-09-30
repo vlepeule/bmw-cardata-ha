@@ -228,7 +228,6 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="overrides",
             data_schema=self._build_overrides_schema(),
-            description="Leave fields blank to use the default values from the integration.",
         )
 
     def _build_overrides_schema(self) -> vol.Schema:
@@ -320,7 +319,6 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         self,
         *,
         step_id: str,
-        description: str,
         errors: Optional[Dict[str, str]] = None,
         placeholders: Optional[Dict[str, Any]] = None,
     ) -> FlowResult:
@@ -328,7 +326,6 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
             step_id=step_id,
             data_schema=self._confirm_schema(),
             errors=errors,
-            description=description,
             description_placeholders=placeholders,
         )
 
@@ -340,11 +337,10 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         description = "Refresh stored tokens now?"
         if user_input is None:
-            return self._show_confirm(step_id="action_refresh_tokens", description=description)
+            return self._show_confirm(step_id="action_refresh_tokens")
         if not user_input.get("confirm"):
             return self._show_confirm(
                 step_id="action_refresh_tokens",
-                description=description,
                 errors={"confirm": "confirm"},
             )
         try:
@@ -352,7 +348,6 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         except CardataAuthError as err:
             return self._show_confirm(
                 step_id="action_refresh_tokens",
-                description=description,
                 errors={"base": "refresh_failed"},
                 placeholders={"error": str(err)},
             )
@@ -363,11 +358,10 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         description = "This will clear stored credentials and restart the authorization flow."
         if user_input is None:
-            return self._show_confirm(step_id="action_reauth", description=description)
+            return self._show_confirm(step_id="action_reauth")
         if not user_input.get("confirm"):
             return self._show_confirm(
                 step_id="action_reauth",
-                description=description,
                 errors={"confirm": "confirm"},
             )
         return await self._handle_reauth()
@@ -380,15 +374,13 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         if runtime is None:
             return self._show_confirm(
                 step_id="action_fetch_mappings",
-                description=description,
                 errors={"base": "runtime_missing"},
             )
         if user_input is None:
-            return self._show_confirm(step_id="action_fetch_mappings", description=description)
+            return self._show_confirm(step_id="action_fetch_mappings")
         if not user_input.get("confirm"):
             return self._show_confirm(
                 step_id="action_fetch_mappings",
-                description=description,
                 errors={"confirm": "confirm"},
             )
         await self.hass.services.async_call(
@@ -419,22 +411,19 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         if runtime is None:
             return self._show_confirm(
                 step_id="action_fetch_basic",
-                description=description,
                 errors={"base": "runtime_missing"},
             )
         vins = self._collect_vins()
         if not vins:
             return self._show_confirm(
                 step_id="action_fetch_basic",
-                description=description,
                 errors={"base": "no_vins"},
             )
         if user_input is None:
-            return self._show_confirm(step_id="action_fetch_basic", description=description)
+            return self._show_confirm(step_id="action_fetch_basic")
         if not user_input.get("confirm"):
             return self._show_confirm(
                 step_id="action_fetch_basic",
-                description=description,
                 errors={"confirm": "confirm"},
             )
         for vin in sorted(vins):
@@ -454,15 +443,13 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         if runtime is None:
             return self._show_confirm(
                 step_id="action_fetch_telematic",
-                description=description,
                 errors={"base": "runtime_missing"},
             )
         if user_input is None:
-            return self._show_confirm(step_id="action_fetch_telematic", description=description)
+            return self._show_confirm(step_id="action_fetch_telematic")
         if not user_input.get("confirm"):
             return self._show_confirm(
                 step_id="action_fetch_telematic",
-                description=description,
                 errors={"confirm": "confirm"},
             )
         await self.hass.services.async_call(
