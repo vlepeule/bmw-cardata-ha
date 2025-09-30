@@ -187,7 +187,7 @@ class CardataSocEstimateSensor(CardataEntity, SensorEntity):
 
     def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
         super().__init__(coordinator, vin, "soc_estimate")
-        self._base_name = "Extrapolated SOC"
+        self._base_name = "State Of Charge (Predicted)"
         self._update_name(write_state=False)
         self._unsubscribe = None
 
@@ -243,7 +243,7 @@ class CardataSocRateSensor(CardataEntity, SensorEntity):
 
     def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
         super().__init__(coordinator, vin, "soc_rate")
-        self._base_name = "Extrapolated SOC Rate"
+        self._base_name = "Predicted charge speed"
         self._update_name(write_state=False)
         self._unsubscribe = None
 
