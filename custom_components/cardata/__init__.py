@@ -486,6 +486,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     if isinstance(payload, dict):
                         metadata = runtime.coordinator.apply_basic_data(vin, payload)
                         if metadata:
+                            _async_store_vehicle_metadata(
+                                hass,
+                                entry,
+                                vin,
+                                metadata.get("raw_data") or payload,
+                            )
                             device_registry = dr.async_get(hass)
                             device_registry.async_get_or_create(
                                 config_entry_id=entry.entry_id,
