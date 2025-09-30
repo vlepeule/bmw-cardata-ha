@@ -24,9 +24,6 @@ from . import async_manual_refresh_tokens
 from .const import (
     DEFAULT_SCOPE,
     DOMAIN,
-    OPTION_MQTT_KEEPALIVE,
-    OPTION_DIAGNOSTIC_INTERVAL,
-    OPTION_DEBUG_LOG,
     VEHICLE_METADATA,
 )
 from .device_flow import CardataAuthError, poll_for_tokens, request_device_code
@@ -202,7 +199,6 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_menu(
             step_id="init",
             menu_options={
-                "overrides": "Edit overrides",
                 "action_refresh_tokens": "Refresh tokens",
                 "action_reauth": "Start device authorization again",
                 "action_fetch_mappings": "Initiate vehicles (API)",
@@ -210,107 +206,6 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
                 "action_fetch_telematic": "Get telematics data (API)",
             },
         )
-
-    async def async_step_overrides(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
-        if user_input is not None:
-            overrides, errors = self._parse_overrides(user_input)
-            if errors:
-                return self.async_show_form(
-                    step_id="overrides",
-                    data_schema=self._build_overrides_schema(),
-                    errors=errors,
-                )
-            changed = self._apply_overrides(overrides)
-            if changed:
-                self.hass.config_entries.async_schedule_reload(self._config_entry.entry_id)
-            return self.async_create_entry(title="", data={})
-
-        return self.async_show_form(
-            step_id="overrides",
-            data_schema=self._build_overrides_schema(),
-        )
-
-    def _build_overrides_schema(self) -> vol.Schema:
-        options = self._config_entry.options or {}
-        keepalive_default = str(options.get(OPTION_MQTT_KEEPALIVE, ""))
-        diagnostic_default = str(options.get(OPTION_DIAGNOSTIC_INTERVAL, ""))
-        debug_default = options.get(OPTION_DEBUG_LOG)
-        if debug_default is True:
-            debug_choice = "true"
-        elif debug_default is False:
-            debug_choice = "false"
-        else:
-            debug_choice = "default"
-        return vol.Schema(
-            {
-                vol.Optional("mqtt_keepalive", default=keepalive_default): str,
-                vol.Optional("diagnostic_log_interval", default=diagnostic_default): str,
-                vol.Optional(
-                    "debug_log",
-                    default=debug_choice,
-                ): vol.In({"default": "Use default", "true": "Enabled", "false": "Disabled"}),
-            }
-        )
-
-    def _parse_overrides(self, user_input: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, str]]:
-        overrides: Dict[str, Any] = {}
-        errors: Dict[str, str] = {}
-
-        keepalive_raw = user_input.get("mqtt_keepalive")
-        if keepalive_raw is not None:
-            keepalive_raw = keepalive_raw.strip()
-            if keepalive_raw:
-                try:
-                    value = int(keepalive_raw)
-                    if value <= 0:
-                        raise ValueError
-                except ValueError:
-                    errors["mqtt_keepalive"] = "invalid_int"
-                else:
-                    overrides[OPTION_MQTT_KEEPALIVE] = value
-            else:
-                overrides[OPTION_MQTT_KEEPALIVE] = None
-
-        diagnostic_raw = user_input.get("diagnostic_log_interval")
-        if diagnostic_raw is not None:
-            diagnostic_raw = diagnostic_raw.strip()
-            if diagnostic_raw:
-                try:
-                    value = int(diagnostic_raw)
-                    if value <= 0:
-                        raise ValueError
-                except ValueError:
-                    errors["diagnostic_log_interval"] = "invalid_int"
-                else:
-                    overrides[OPTION_DIAGNOSTIC_INTERVAL] = value
-            else:
-                overrides[OPTION_DIAGNOSTIC_INTERVAL] = None
-
-        debug_choice = user_input.get("debug_log")
-        if debug_choice == "true":
-            overrides[OPTION_DEBUG_LOG] = True
-        elif debug_choice == "false":
-            overrides[OPTION_DEBUG_LOG] = False
-        else:
-            overrides[OPTION_DEBUG_LOG] = None
-
-        return overrides, errors
-
-    def _apply_overrides(self, overrides: Dict[str, Any]) -> bool:
-        options = dict(self._config_entry.options or {})
-        changed = False
-        for key, value in overrides.items():
-            if value is None:
-                if key in options:
-                    options.pop(key)
-                    changed = True
-            else:
-                if options.get(key) != value:
-                    options[key] = value
-                    changed = True
-        if changed:
-            self.hass.config_entries.async_update_entry(self._config_entry, options=options)
-        return changed
 
     def _confirm_schema(self) -> vol.Schema:
         return vol.Schema({vol.Required("confirm", default=False): bool})
