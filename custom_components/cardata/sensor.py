@@ -237,7 +237,6 @@ class CardataSocEstimateSensor(CardataEntity, SensorEntity):
 
 class CardataTestingSocEstimateSensor(CardataEntity, SensorEntity):
     _attr_should_poll = False
-    _attr_device_class = SensorDeviceClass.BATTERY
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "%"
     _attr_icon = "mdi:battery-clock"
