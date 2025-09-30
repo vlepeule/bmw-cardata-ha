@@ -397,8 +397,13 @@ async def async_setup_entry(
         else:
             unique_id = f"{entry.entry_id}_diagnostics_connection_status"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
-        if entity_id and hass.states.get(entity_id) is not None:
-            continue
+        if entity_id:
+            entity_entry = entity_registry.async_get(entity_id)
+            if entity_entry and entity_entry.disabled_by is not None:
+                continue
+            existing_state = hass.states.get(entity_id)
+            if existing_state and not existing_state.attributes.get("restored", False):
+                continue
         diagnostic_entities.append(
             CardataDiagnosticsSensor(
                 coordinator,
