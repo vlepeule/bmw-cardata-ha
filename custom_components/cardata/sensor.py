@@ -187,7 +187,7 @@ class CardataSocEstimateSensor(CardataEntity, SensorEntity):
 
     def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
         super().__init__(coordinator, vin, "soc_estimate")
-        self._base_name = "State Of Charge (Predicted)"
+        self._base_name = "State Of Charge (Predicted on Integration side)"
         self._update_name(write_state=False)
         self._unsubscribe = None
 
