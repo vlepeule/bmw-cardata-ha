@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
@@ -167,6 +168,10 @@ class CardataCoordinator:
     _testing_soc_estimate: Dict[str, float] = field(default_factory=dict, init=False)
     _avg_aux_power_w: Dict[str, float] = field(default_factory=dict, init=False)
     _charging_power_w: Dict[str, float] = field(default_factory=dict, init=False)
+    _direct_power_w: Dict[str, float] = field(default_factory=dict, init=False)
+    _ac_voltage_v: Dict[str, float] = field(default_factory=dict, init=False)
+    _ac_current_a: Dict[str, float] = field(default_factory=dict, init=False)
+    _ac_phase_count: Dict[str, int] = field(default_factory=dict, init=False)
 
     @property
     def signal_new_sensor(self) -> str:
@@ -210,6 +215,88 @@ class CardataCoordinator:
             self._adjust_power_for_testing(vin, raw_power), timestamp
         )
 
+    def _set_direct_power(
+        self, vin: str, power_w: Optional[float], timestamp: Optional[datetime]
+    ) -> None:
+        if power_w is None:
+            self._direct_power_w.pop(vin, None)
+        else:
+            self._direct_power_w[vin] = max(power_w, 0.0)
+        self._apply_effective_power(vin, timestamp)
+
+    def _set_ac_voltage(
+        self, vin: str, voltage_v: Optional[float], timestamp: Optional[datetime]
+    ) -> None:
+        if voltage_v is None:
+            self._ac_voltage_v.pop(vin, None)
+        else:
+            self._ac_voltage_v[vin] = max(voltage_v, 0.0)
+        self._apply_effective_power(vin, timestamp)
+
+    def _set_ac_current(
+        self, vin: str, current_a: Optional[float], timestamp: Optional[datetime]
+    ) -> None:
+        if current_a is None:
+            self._ac_current_a.pop(vin, None)
+        else:
+            self._ac_current_a[vin] = max(current_a, 0.0)
+        self._apply_effective_power(vin, timestamp)
+
+    def _set_ac_phase(
+        self, vin: str, phase_value: Optional[Any], timestamp: Optional[datetime]
+    ) -> None:
+        phase_count: Optional[int] = None
+        if phase_value is None:
+            phase_count = None
+        elif isinstance(phase_value, (int, float)):
+            try:
+                parsed = int(phase_value)
+            except (TypeError, ValueError):
+                parsed = None
+            phase_count = parsed if parsed and parsed > 0 else None
+        elif isinstance(phase_value, str):
+            match = re.match(r"(\d+)", phase_value)
+            if match:
+                try:
+                    parsed = int(match.group(1))
+                except (TypeError, ValueError):
+                    parsed = None
+                phase_count = parsed if parsed and parsed > 0 else None
+        if phase_count is None:
+            self._ac_phase_count.pop(vin, None)
+        else:
+            self._ac_phase_count[vin] = phase_count
+        self._apply_effective_power(vin, timestamp)
+
+    def _derive_ac_power(self, vin: str) -> Optional[float]:
+        voltage = self._ac_voltage_v.get(vin)
+        current = self._ac_current_a.get(vin)
+        phases = self._ac_phase_count.get(vin)
+        if voltage is None or current is None or phases is None:
+            return None
+        return max(voltage * current * phases, 0.0)
+
+    def _compute_effective_power(self, vin: str) -> Optional[float]:
+        direct = self._direct_power_w.get(vin)
+        if direct is not None:
+            return direct
+        return self._derive_ac_power(vin)
+
+    def _apply_effective_power(
+        self, vin: str, timestamp: Optional[datetime]
+    ) -> None:
+        tracking = self._soc_tracking.setdefault(vin, SocTracking())
+        testing_tracking = self._get_testing_tracking(vin)
+        effective_power = self._compute_effective_power(vin)
+        if effective_power is None:
+            self._charging_power_w.pop(vin, None)
+            return
+        self._charging_power_w[vin] = effective_power
+        tracking.update_power(effective_power, timestamp)
+        testing_tracking.update_power(
+            self._adjust_power_for_testing(vin, effective_power), timestamp
+        )
+
     async def async_handle_message(self, payload: Dict[str, Any]) -> None:
         vin = payload.get("vin")
         data = payload.get("data") or {}
@@ -235,15 +322,22 @@ class CardataCoordinator:
             value = descriptor_payload.get("value")
             unit = descriptor_payload.get("unit")
             timestamp = descriptor_payload.get("timestamp")
+            parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
             if value is None:
                 if descriptor == "vehicle.powertrain.electric.battery.stateOfCharge.target":
-                    parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
                     tracking.update_target_soc(None, parsed_ts)
                     testing_tracking.update_target_soc(None, parsed_ts)
                 elif descriptor == "vehicle.vehicle.avgAuxPower":
-                    parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
                     self._avg_aux_power_w.pop(vin, None)
                     self._update_testing_power(vin, parsed_ts)
+                elif descriptor == "vehicle.powertrain.electric.battery.charging.power":
+                    self._set_direct_power(vin, None, parsed_ts)
+                elif descriptor == "vehicle.drivetrain.electricEngine.charging.acVoltage":
+                    self._set_ac_voltage(vin, None, parsed_ts)
+                elif descriptor == "vehicle.drivetrain.electricEngine.charging.acAmpere":
+                    self._set_ac_current(vin, None, parsed_ts)
+                elif descriptor == "vehicle.drivetrain.electricEngine.charging.phaseNumber":
+                    self._set_ac_phase(vin, None, parsed_ts)
                 continue
             is_new = descriptor not in vehicle_state
             vehicle_state[descriptor] = DescriptorState(value=value, unit=unit, timestamp=timestamp)
@@ -254,8 +348,6 @@ class CardataCoordinator:
                     new_binary.append(descriptor)
                 else:
                     new_sensor.append(descriptor)
-
-            parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
             if descriptor == "vehicle.drivetrain.batteryManagement.header":
                 try:
                     percent = float(value)
@@ -276,13 +368,9 @@ class CardataCoordinator:
                 try:
                     power_w = float(value)
                 except (TypeError, ValueError):
-                    pass
+                    self._set_direct_power(vin, None, parsed_ts)
                 else:
-                    tracking.update_power(power_w, parsed_ts)
-                    self._charging_power_w[vin] = power_w
-                    testing_tracking.update_power(
-                        self._adjust_power_for_testing(vin, power_w), parsed_ts
-                    )
+                    self._set_direct_power(vin, power_w, parsed_ts)
             elif descriptor == "vehicle.drivetrain.electricEngine.charging.status":
                 if isinstance(value, str):
                     tracking.update_status(value)
@@ -314,6 +402,22 @@ class CardataCoordinator:
                 else:
                     self._avg_aux_power_w[vin] = aux_w
                 self._update_testing_power(vin, parsed_ts)
+            elif descriptor == "vehicle.drivetrain.electricEngine.charging.acVoltage":
+                try:
+                    voltage_v = float(value)
+                except (TypeError, ValueError):
+                    self._set_ac_voltage(vin, None, parsed_ts)
+                else:
+                    self._set_ac_voltage(vin, voltage_v, parsed_ts)
+            elif descriptor == "vehicle.drivetrain.electricEngine.charging.acAmpere":
+                try:
+                    current_a = float(value)
+                except (TypeError, ValueError):
+                    self._set_ac_current(vin, None, parsed_ts)
+                else:
+                    self._set_ac_current(vin, current_a, parsed_ts)
+            elif descriptor == "vehicle.drivetrain.electricEngine.charging.phaseNumber":
+                self._set_ac_phase(vin, value, parsed_ts)
 
             async_dispatcher_send(self.hass, self.signal_update, vin, descriptor)
 
@@ -396,6 +500,10 @@ class CardataCoordinator:
                 self._testing_soc_tracking.pop(vin, None)
             self._avg_aux_power_w.pop(vin, None)
             self._charging_power_w.pop(vin, None)
+            self._direct_power_w.pop(vin, None)
+            self._ac_voltage_v.pop(vin, None)
+            self._ac_current_a.pop(vin, None)
+            self._ac_phase_count.pop(vin, None)
             changed = removed_estimate or removed_rate or testing_removed
             if notify and changed:
                 async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
@@ -475,6 +583,14 @@ class CardataCoordinator:
             elif descriptor == "vehicle.vehicle.avgAuxPower":
                 self._avg_aux_power_w.pop(vin, None)
                 self._update_testing_power(vin, parsed_ts)
+            elif descriptor == "vehicle.powertrain.electric.battery.charging.power":
+                self._set_direct_power(vin, None, parsed_ts)
+            elif descriptor == "vehicle.drivetrain.electricEngine.charging.acVoltage":
+                self._set_ac_voltage(vin, None, parsed_ts)
+            elif descriptor == "vehicle.drivetrain.electricEngine.charging.acAmpere":
+                self._set_ac_current(vin, None, parsed_ts)
+            elif descriptor == "vehicle.drivetrain.electricEngine.charging.phaseNumber":
+                self._set_ac_phase(vin, None, parsed_ts)
             return
         vehicle_state = self.data.setdefault(vin, {})
         stored_value: Any = value
@@ -482,6 +598,8 @@ class CardataCoordinator:
             "vehicle.drivetrain.batteryManagement.header",
             "vehicle.drivetrain.batteryManagement.maxEnergy",
             "vehicle.powertrain.electric.battery.charging.power",
+            "vehicle.drivetrain.electricEngine.charging.acVoltage",
+            "vehicle.drivetrain.electricEngine.charging.acAmpere",
         }:
             try:
                 stored_value = float(value)
@@ -516,12 +634,9 @@ class CardataCoordinator:
             try:
                 power_w = float(value)
             except (TypeError, ValueError):
-                return
-            tracking.update_power(power_w, parsed_ts)
-            self._charging_power_w[vin] = power_w
-            testing_tracking.update_power(
-                self._adjust_power_for_testing(vin, power_w), parsed_ts
-            )
+                self._set_direct_power(vin, None, parsed_ts)
+            else:
+                self._set_direct_power(vin, power_w, parsed_ts)
             updated = True
         elif descriptor == "vehicle.drivetrain.electricEngine.charging.status":
             if isinstance(value, str):
@@ -557,6 +672,25 @@ class CardataCoordinator:
             else:
                 self._avg_aux_power_w[vin] = aux_w
             self._update_testing_power(vin, parsed_ts)
+            updated = True
+        elif descriptor == "vehicle.drivetrain.electricEngine.charging.acVoltage":
+            try:
+                voltage_v = float(value)
+            except (TypeError, ValueError):
+                self._set_ac_voltage(vin, None, parsed_ts)
+            else:
+                self._set_ac_voltage(vin, voltage_v, parsed_ts)
+            updated = True
+        elif descriptor == "vehicle.drivetrain.electricEngine.charging.acAmpere":
+            try:
+                current_a = float(value)
+            except (TypeError, ValueError):
+                self._set_ac_current(vin, None, parsed_ts)
+            else:
+                self._set_ac_current(vin, current_a, parsed_ts)
+            updated = True
+        elif descriptor == "vehicle.drivetrain.electricEngine.charging.phaseNumber":
+            self._set_ac_phase(vin, value, parsed_ts)
             updated = True
 
         if not updated:

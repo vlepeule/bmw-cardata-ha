@@ -227,7 +227,7 @@ DESCRIPTOR_TITLES = {
     "vehicle.drivetrain.electricEngine.charging.status": "Charging Status",
     "vehicle.drivetrain.batteryManagement.header": "State of Charge (Last Known)",
     "vehicle.drivetrain.electricEngine.charging.connectionType": "Charging Method High Voltage Battery",
-    "vehicle.drivetrain.electricEngine.charging.phaseNumber": "Charging Process High Voltage Battery",
+    "vehicle.drivetrain.electricEngine.charging.phaseNumber": "Charging Phases",
     "vehicle.trip.segment.end.drivetrain.batteryManagement.hvSoc": "Battery Charge Level",
     "vehicle.powertrain.electric.battery.preconditioning.manualMode.statusFeedback": "Battery Preconditioning Manual",
     "vehicle.powertrain.electric.battery.charging.acLimit.max": "Maximum Charging",
