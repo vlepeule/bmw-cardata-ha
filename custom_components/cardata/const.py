@@ -12,7 +12,14 @@ DEFAULT_STREAM_PORT = 9000
 DEFAULT_REFRESH_INTERVAL = 45 * 60  # seconds
 MQTT_KEEPALIVE = 30
 DEBUG_LOG = True
-DIAGNOSTIC_LOG_INTERVAL = 60
+DIAGNOSTIC_LOG_INTERVAL = 30
+BOOTSTRAP_COMPLETE = "bootstrap_complete"
+REQUEST_LOG = "request_log"
+REQUEST_LOG_VERSION = 1
+REQUEST_LIMIT = 50
+REQUEST_WINDOW_SECONDS = 24 * 60 * 60
+TELEMATIC_POLL_INTERVAL = 60 * 60
+VEHICLE_METADATA = "vehicle_metadata"
 
 HV_BATTERY_CONTAINER_NAME = "BimmerData HV Battery"
 HV_BATTERY_CONTAINER_PURPOSE = "High voltage battery telemetry"
@@ -46,14 +53,6 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.vehicleIdentification.basicVehicleData",
     "vehicle.drivetrain.batteryManagement.batterySizeMax"
 ]
-
-BOOTSTRAP_COMPLETE = "bootstrap_complete"
-REQUEST_LOG = "request_log"
-REQUEST_LOG_VERSION = 1
-REQUEST_LIMIT = 50
-REQUEST_WINDOW_SECONDS = 24 * 60 * 60
-TELEMATIC_POLL_INTERVAL = 30 * 60
-VEHICLE_METADATA = "vehicle_metadata"
 
 #fetch_vehicle_mapping returns data like this:
 #2025-09-29 18:11:26.340 INFO (MainThread) [custom_components.cardata] Cardata vehicle mappings: [{'mappedSince': '2025-03-27T17:48:41.435Z', 'mappingType': 'PRIMARY', 'vin': 'WBY31AW090FP15359'}, {'mappedSince': '2023-10-10T13:29:38.484Z', 'mappingType': 'PRIMARY', 'vin': 'WBY1Z21020V791850'}]
