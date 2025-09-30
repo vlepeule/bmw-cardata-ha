@@ -244,7 +244,7 @@ class CardataTestingSocEstimateSensor(CardataEntity, SensorEntity):
 
     def __init__(self, coordinator: CardataCoordinator, vin: str) -> None:
         super().__init__(coordinator, vin, "soc_estimate_testing")
-        self._base_name = "Extrapolated SOC (Testing)"
+        self._base_name = "New Extrapolation Testing sensor"
         self._update_name(write_state=False)
         self._unsubscribe = None
 
