@@ -4,16 +4,34 @@
 
 # BimmerData Streamline (BMW CarData for Home Assistant)
 
-## This is experimental. Wait for the core integration to get fixed if you want stable experience but if you want to help, keep reporting the bugs and I'll take a look! :) The Beta branch is used as a day to day development branch and can contain even completely broken stuff. The main branch is updated when I feel that it works well enough and has something new. However, the integration currently lacks proper testing and I also need to keep my own automations running so not everything is tested on every release and there's a possibility that something works on my instance, since I already had something installed. Create an issue if you have problems when making a clean install. 
+## This is experimental. 
+Wait for the core integration to get fixed if you want stable experience but if you want to help, keep reporting the bugs and I'll take a look! :) The Beta branch is used as a day to day development branch and can contain completely broken stuff. The main branch is updated when I feel that it works well enough and has something new. However, the integration currently lacks proper testing and I also need to keep my own automations running so not everything is tested on every release and there's a possibility that something works on my instance, since I already had something installed. Create an issue if you have problems when making a clean install. 
 
 
-## Known problems: 
-### BEV battery update rate is quite slow. Latest version has "extrapolated SOC" sensor that is calculated dynamically from the last known soc, charging speed and time. It's still really early revision and lacks some features. For example it won't detect when the target SOC is reached and charging stopped, before the car actually sends a message.
-### Log shows constant RC=7 dis/reconnects. That's on purpose and is caused by >60 Keepalive time. Lower keepalive time seems to make the connection stay alive, but after a while BMW stops sending updates. Reconnecting periodically fixes that issue. Some users reported seeing data even with lower keepalive, so I'll keep experimenting with that.
-### Either because of the forced disconnections or something else, I once got the integration into disconnected state where it didn't try to reconnect. It's on my todo list, but hard to debug since it happens after hours of working.
+## Release Notes: 
+#### 30.9.2025
+### CarData API implemented
+In addition to the stream, we now also poll the API every 40 minutes. There is still some space to make this higher resolution and I will also plan to make it so, that we wont poll at the same time as stream is online to save some quota for later.
 
-## Upcoming features:
-### Goal is to also utilize the 50 API requests/24h that the public cardata provides. Those could be used to increase the data resolution when the stream is quiet and fetch some data not available on the stream (car model, target soc, etc.)
+### Better names to entities and sensors
+Vehicles should now named after their actual model. You can still see the VIN briefly in some situations
+Sensor friendly names are also revamped to be CarModel - SensorName. Sensor names are AI generated from the BMW catalogue. Please report or create a PR if you see something stupid. The sensor names are available in custom_components/cardata/descriptor_titles.py
+
+### More stable stream implementation
+Stream shouldn't reconnect every 70 seconds anymore. However, reconnection every 45 minutes is needed since BMW tokens are pretty shortlived. 
+
+### Configure button actions
+On the integration main page, there is now "Configure" button. You can use it to:
+- Refresh authentication tokens (will reload integration, might also need HA restart in some problem cases)
+- Start device authorization again (redo the whole auth flow. Not tested yet but should work ™️)
+
+And manual API calls, these should be automatically called when needed, but if it seems that your device names aren't being updated, it might be worth it to run these manually. 
+- Initiate Vehicles API call (Fetch all Vehicle VINS on your account and create entities out of them)
+- Get Basic Vehicle Information (Fetches vehicle details like model, etc. for all known VINS)
+- Get telematics data (Fetches a telematics data from the CarData API. This is a limited hardcoded subset compared to stream. I can add more if needed)
+
+Note that every API call here counts towards your 50/24h quota!
+
 
 Turn your BMW CarData stream into native Home Assistant entities. This integration subscribes directly to the BMW CarData MQTT stream, keeps the token fresh automatically, and creates sensors/binary sensors for every descriptor that emits data.
 
@@ -21,20 +39,9 @@ Turn your BMW CarData stream into native Home Assistant entities. This integrati
 
 > **Note:** This entire plugin was generated with the assistance of AI to quickly solve issues with the legacy implementation. The code is intentionally open—to-modify, fork, or build a new integration from it. PRs are welcome unless otherwise noted in the future.
 
-> **Tested Environment:** The integration has only been verified on my own Home Assistant instance (2024.12.5). Newer releases might require adjustments.
-
-> **Heads-up:** The first authentication attempt occasionally stalls. If the integration immediately asks for re-auth, repeat the flow slowly—sign in on the BMW page, wait a moment after the portal confirms, then click Submit in Home Assistant. Once it completes, trigger an action in the MyBMW app (e.g., lock/unlock) to nudge the vehicle to send data and give it a couple of minutes to appear. So far the most reliant way to trigger the stream seems to be to change the charging speed remotely.
+> **Tested Environment:** The integration has only been verified on my own outdated Home Assistant instance (2024.12.5). Newer releases might require adjustments.
 
 > **Heads-up:** I've tested this on 2022 i4 and 2016 i3. Both show up entities, i4 sends them instantly after locking/closing the car remotely using MyBMW app. i3 seems to send the data when it wants to. So far after reinstalling the plugin, I haven't seen anything for an hour, but received data multiple times earlier. So be patient, maybe go and drive around or something to trigger the data transfer :) 
-
-
-## Features
-
-- Device Code / PKCE auth flow
-- Automatic token refreshing at 45-minute intervals.
-- Direct MQTT streaming (`GCID/+/#`) with auto-reconnect and re-auth if credentials go stale.
-- Sensors & binary sensors appear dynamically when descriptors send data (door states, charging info, HVAC settings, etc.).
-- Device metadata (BMW VIN + model name) populated from `vehicle.vehicleIdentification.basicVehicleData`.
 
 ## BMW Portal Setup (DON'T SKIP, DO THIS FIRST)
 
@@ -43,7 +50,8 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 1. Select the vehicle you want to stream.
 2. Choose **BMW CarData**.
 3. Generate a client ID as described here: https://bmw-cardata.bmwgroup.com/customer/public/api-documentation/Id-Technical-registration_Step-1
-4. Subscribe the client to both scopes: `cardata:api:read` and `cardata:streaming:read`.
+4. Subscribe the client to both scopes: `cardata:api:read` and `cardata:streaming:read` and click authorize.
+4.1. Note, BMW portal seems to have some problems with scope selection. If you see an error on the top of the page, reload it, select one scope and wait for +30 seconds, then select the another one and wait agin.
 5. Scroll to the **Data Selection** section (`Datenauswahl ändern`) and load all descriptors (keep clicking “Load more”).
 6. Check every descriptor you want to stream. To automate this, open the browser console and run:
    - If you want the "Extrapolated SOC" helper sensor to work, make sure your telematics container includes the descriptors `vehicle.drivetrain.batteryManagement.header`, `vehicle.drivetrain.batteryManagement.maxEnergy`, `vehicle.powertrain.electric.battery.charging.power`, and `vehicle.drivetrain.electricEngine.charging.status`. Those fields let the integration reset the extrapolated state of charge and calculate the charging slope between stream updates.
@@ -96,10 +104,7 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 5. If you remove the integration later, you can re-add it with the same client ID—the flow deletes the old entry automatically.
 
 ### Reauthorization
-If BMW rejects the token (e.g. because the portal revoked it), the integration:
-- Logs `BMW MQTT connection failed: rc=5`
-- Shows a persistent notification in HA
-- Causes a re-auth flow to appear, where you repeat the approval steps
+If BMW rejects the token (e.g. because the portal revoked it), please use the Configure > Start Device Authorization Again tool
 
 ## Entity Naming & Structure
 
