@@ -14,7 +14,7 @@ Wait for the core integration to get fixed if you want stable experience but if 
 In addition to the stream, we now also poll the API every 40 minutes. There is still some space to make this higher resolution and I will also plan to make it so, that we wont poll at the same time as stream is online to save some quota for later.
 
 ### Better names to entities and sensors
-Vehicles should now named after their actual model. You can still see the VIN briefly in some situations
+Vehicles should now be named after their actual model. You can still see the VIN briefly in some situations
 Sensor friendly names are also revamped to be CarModel - SensorName. Sensor names are AI generated from the BMW catalogue. Please report or create a PR if you see something stupid. The sensor names are available in custom_components/cardata/descriptor_titles.py
 
 ### More stable stream implementation
