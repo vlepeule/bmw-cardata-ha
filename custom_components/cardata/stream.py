@@ -13,7 +13,8 @@ import paho.mqtt.client as mqtt
 
 from homeassistant.core import HomeAssistant
 
-from .const import DEBUG_LOG, DOMAIN
+from .const import DOMAIN
+from .debug import debug_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class CardataStreamManager:
             elapsed = time.monotonic() - self._last_disconnect
             delay = self._min_reconnect_interval - elapsed
             if delay > 0:
-                if DEBUG_LOG:
+                if debug_enabled():
                     _LOGGER.debug(
                         "Waiting %.1fs before starting BMW MQTT client",
                         delay,
@@ -95,20 +96,20 @@ class CardataStreamManager:
             try:
                 client.disconnect()
             except Exception as err:  # pragma: no cover - defensive logging
-                if DEBUG_LOG:
+                if debug_enabled():
                     _LOGGER.debug("Error disconnecting BMW MQTT client: %s", err)
             if disconnect_future is not None:
                 try:
                     await asyncio.wait_for(disconnect_future, timeout=5)
                 except asyncio.TimeoutError:
-                    if DEBUG_LOG:
+                    if debug_enabled():
                         _LOGGER.debug("Timeout waiting for BMW MQTT disconnect acknowledgement")
                 finally:
                     self._disconnect_future = None
             try:
                 client.loop_stop()
             except Exception as err:  # pragma: no cover - defensive logging
-                if DEBUG_LOG:
+                if debug_enabled():
                     _LOGGER.debug("Error stopping BMW MQTT loop: %s", err)
         self._last_disconnect = time.monotonic()
         self._cancel_retry()
@@ -151,7 +152,7 @@ class CardataStreamManager:
             protocol=mqtt.MQTTv311,
             transport="tcp",
         )
-        if DEBUG_LOG:
+        if debug_enabled():
             _LOGGER.debug(
                 "Initializing MQTT client: client_id=%s host=%s port=%s",
                 client_id,
@@ -159,7 +160,7 @@ class CardataStreamManager:
                 self._port,
             )
         client.username_pw_set(username=self._gcid, password=self._password)
-        if DEBUG_LOG:
+        if debug_enabled():
             _LOGGER.debug(
                 "MQTT credentials set for GCID %s (token length=%s)",
                 self._gcid,
@@ -192,7 +193,7 @@ class CardataStreamManager:
             topic = userdata.get("topic")
             if topic:
                 result = client.subscribe(topic)
-                if DEBUG_LOG:
+                if debug_enabled():
                     _LOGGER.debug("Subscribed to %s result=%s", topic, result)
             if self._reauth_notified:
                 self._reauth_notified = False
@@ -213,7 +214,7 @@ class CardataStreamManager:
                 and self._last_disconnect is not None
                 and now - self._last_disconnect < 10
             ):
-                if DEBUG_LOG:
+                if debug_enabled():
                     _LOGGER.debug(
                         "BMW MQTT connection refused shortly after disconnect; scheduling retry"
                     )
@@ -233,12 +234,12 @@ class CardataStreamManager:
             )
 
     def _handle_subscribe(self, client: mqtt.Client, userdata, mid, granted_qos) -> None:
-        if DEBUG_LOG:
+        if debug_enabled():
             _LOGGER.debug("BMW MQTT subscribed mid=%s qos=%s", mid, granted_qos)
 
     def _handle_message(self, client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
         payload = msg.payload.decode(errors="ignore")
-        if DEBUG_LOG:
+        if debug_enabled():
             _LOGGER.debug("BMW MQTT message on %s: %s", msg.topic, payload)
         if not self._message_callback:
             return
@@ -277,7 +278,7 @@ class CardataStreamManager:
                 and self._last_disconnect is not None
                 and now - self._last_disconnect < 10
             ):
-                if DEBUG_LOG:
+                if debug_enabled():
                     _LOGGER.debug(
                         "Ignoring transient MQTT rc=5; scheduling retry instead"
                     )
@@ -409,7 +410,7 @@ class CardataStreamManager:
                         try:
                             await asyncio.wait_for(self._disconnect_future, timeout=10)
                         except asyncio.TimeoutError:
-                            if DEBUG_LOG:
+                            if debug_enabled():
                                 _LOGGER.debug(
                                     "Timed out waiting for previous BMW MQTT disconnect before retry"
                                 )

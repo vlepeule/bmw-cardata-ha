@@ -24,7 +24,8 @@
     "error": {
       "refresh_failed": "Token refresh failed: {error}",
       "runtime_missing": "Integration runtime is not ready. Try again after setup completes.",
-      "no_vins": "No VINs are known yet. Wait for the stream to discover a vehicle or trigger it once manually."
+      "no_vins": "No VINs are known yet. Wait for the stream to discover a vehicle or trigger it once manually.",
+      "invalid_int": "Enter a positive integer"
     },
     "abort": {
       "reauth_started": "Authorization restarted. Complete the new login flow from the notification."

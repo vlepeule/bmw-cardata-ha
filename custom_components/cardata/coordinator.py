@@ -12,7 +12,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 
-from .const import DEBUG_LOG, DOMAIN, DIAGNOSTIC_LOG_INTERVAL
+from .const import DOMAIN, DIAGNOSTIC_LOG_INTERVAL
+from .debug import debug_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -130,6 +131,7 @@ class CardataCoordinator:
     last_telematic_api_at: Optional[datetime] = None
     connection_status: str = "connecting"
     last_disconnect_reason: Optional[str] = None
+    diagnostic_interval: int = DIAGNOSTIC_LOG_INTERVAL
     watchdog_task: Optional[asyncio.Task] = field(default=None, init=False, repr=False)
     _soc_tracking: Dict[str, SocTracking] = field(default_factory=dict, init=False)
     _soc_rate: Dict[str, float] = field(default_factory=dict, init=False)
@@ -171,7 +173,7 @@ class CardataCoordinator:
 
         self.last_message_at = datetime.now(timezone.utc)
 
-        if DEBUG_LOG:
+        if debug_enabled():
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
 
         tracking = self._soc_tracking.setdefault(vin, SocTracking())
@@ -263,13 +265,13 @@ class CardataCoordinator:
     async def _watchdog_loop(self) -> None:
         try:
             while True:
-                await asyncio.sleep(DIAGNOSTIC_LOG_INTERVAL)
+                await asyncio.sleep(self.diagnostic_interval)
                 self._log_diagnostics()
         except asyncio.CancelledError:
             return
 
     def _log_diagnostics(self) -> None:
-        if DEBUG_LOG:
+        if debug_enabled():
             _LOGGER.debug(
                 "Stream heartbeat: status=%s last_reason=%s last_message=%s",
                 self.connection_status,

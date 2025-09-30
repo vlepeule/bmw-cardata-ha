@@ -12,11 +12,11 @@ import aiohttp
 from .const import (
     API_BASE_URL,
     API_VERSION,
-    DEBUG_LOG,
     HV_BATTERY_CONTAINER_NAME,
     HV_BATTERY_CONTAINER_PURPOSE,
     HV_BATTERY_DESCRIPTORS,
 )
+from .debug import debug_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class CardataContainerManager:
         """Ensure the HV battery container exists and is active."""
 
         if not access_token:
-            if DEBUG_LOG:
+            if debug_enabled():
                 _LOGGER.debug(
                     "[%s] Skipping container ensure because access token is missing",
                     self._entry_id,
@@ -85,7 +85,7 @@ class CardataContainerManager:
 
         async with self._lock:
             if self._container_id:
-                if DEBUG_LOG:
+                if debug_enabled():
                     _LOGGER.debug(
                         "[%s] Using cached HV container %s without validation",
                         self._entry_id,
@@ -130,7 +130,7 @@ class CardataContainerManager:
         if json_body is not None:
             headers["Content-Type"] = "application/json"
         url = f"{API_BASE_URL}{path}"
-        if DEBUG_LOG:
+        if debug_enabled():
             _LOGGER.debug("[%s] %s %s", self._entry_id, method, url)
         try:
             async with self._session.request(

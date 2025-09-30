@@ -43,11 +43,15 @@ from .const import (
     REQUEST_WINDOW_SECONDS,
     TELEMATIC_POLL_INTERVAL,
     VEHICLE_METADATA,
+    OPTION_MQTT_KEEPALIVE,
+    OPTION_DEBUG_LOG,
+    OPTION_DIAGNOSTIC_INTERVAL,
 )
 from .device_flow import CardataAuthError, refresh_tokens
 from .container import CardataContainerError, CardataContainerManager
 from .stream import CardataStreamManager
 from .coordinator import CardataCoordinator
+from .debug import set_debug_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -173,6 +177,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = aiohttp.ClientSession()
 
     data = entry.data
+    options = dict(entry.options) if entry.options else {}
+    mqtt_keepalive = options.get(OPTION_MQTT_KEEPALIVE, MQTT_KEEPALIVE)
+    diagnostic_interval = options.get(OPTION_DIAGNOSTIC_INTERVAL, DIAGNOSTIC_LOG_INTERVAL)
+    debug_option = options.get(OPTION_DEBUG_LOG)
+    debug_flag = DEBUG_LOG if debug_option is None else bool(debug_option)
+
+    set_debug_enabled(debug_flag)
     should_bootstrap = not data.get(BOOTSTRAP_COMPLETE)
     client_id = data["client_id"]
     gcid = data.get("gcid")
@@ -182,6 +193,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Missing GCID or ID token")
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
+    coordinator.diagnostic_interval = diagnostic_interval
     last_poll_ts = data.get("last_telematic_poll")
     if isinstance(last_poll_ts, (int, float)) and last_poll_ts > 0:
         coordinator.last_telematic_api_at = datetime.fromtimestamp(
@@ -226,7 +238,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         id_token=id_token,
         host=data.get("mqtt_host", DEFAULT_STREAM_HOST),
         port=data.get("mqtt_port", DEFAULT_STREAM_PORT),
-        keepalive=MQTT_KEEPALIVE,
+        keepalive=mqtt_keepalive,
         error_callback=handle_stream_error,
     )
     manager.set_message_callback(coordinator.async_handle_message)

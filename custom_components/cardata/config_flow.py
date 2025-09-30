@@ -21,7 +21,14 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
 from . import async_manual_refresh_tokens
-from .const import DEFAULT_SCOPE, DOMAIN, VEHICLE_METADATA
+from .const import (
+    DEFAULT_SCOPE,
+    DOMAIN,
+    OPTION_MQTT_KEEPALIVE,
+    OPTION_DIAGNOSTIC_INTERVAL,
+    OPTION_DEBUG_LOG,
+    VEHICLE_METADATA,
+)
 from .device_flow import CardataAuthError, poll_for_tokens, request_device_code
 
 DATA_SCHEMA = vol.Schema({vol.Required("client_id"): str})
@@ -193,19 +200,37 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         if user_input is not None:
-            action = user_input.get("action")
-            if action == "refresh_tokens":
-                return await self._handle_refresh_tokens()
-            if action == "reauth":
-                return await self._handle_reauth()
-            if action == "fetch_mappings":
-                return await self._handle_fetch_mappings()
-            if action == "fetch_basic_data":
-                return await self._handle_fetch_basic_data()
-            if action == "fetch_telematic":
-                return await self._handle_fetch_telematic()
+            overrides, errors = self._parse_overrides(user_input)
+            if errors:
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=self._build_schema(),
+                    errors=errors,
+                )
 
-            return self.async_create_entry(title="", data={})
+            overrides_changed = self._apply_overrides(overrides)
+
+            action = user_input.get("action", "apply_overrides")
+            if action == "reauth":
+                if overrides_changed:
+                    self.hass.config_entries.async_schedule_reload(self._config_entry.entry_id)
+                return await self._handle_reauth()
+
+            if action == "refresh_tokens":
+                result = await self._handle_refresh_tokens()
+            elif action == "fetch_mappings":
+                result = await self._handle_fetch_mappings()
+            elif action == "fetch_basic_data":
+                result = await self._handle_fetch_basic_data()
+            elif action == "fetch_telematic":
+                result = await self._handle_fetch_telematic()
+            else:
+                result = self.async_create_entry(title="", data={})
+
+            if overrides_changed:
+                self.hass.config_entries.async_schedule_reload(self._config_entry.entry_id)
+
+            return result
 
         return self.async_show_form(
             step_id="init",
@@ -213,22 +238,105 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         )
 
     def _build_schema(self) -> vol.Schema:
+        options = self._config_entry.options or {}
+        keepalive_default = str(options.get(OPTION_MQTT_KEEPALIVE, ""))
+        diagnostic_default = str(options.get(OPTION_DIAGNOSTIC_INTERVAL, ""))
+        debug_default = options.get(OPTION_DEBUG_LOG)
+        if debug_default is True:
+            debug_choice = "true"
+        elif debug_default is False:
+            debug_choice = "false"
+        else:
+            debug_choice = "default"
         return vol.Schema(
             {
                 vol.Required(
                     "action",
-                    default="refresh_tokens",
+                    default="apply_overrides",
                 ): vol.In(
                     {
+                        "apply_overrides": "Save overrides only",
                         "refresh_tokens": "Refresh tokens",
                         "reauth": "Start device authorization again",
                         "fetch_mappings": "Initiate vehicles (API)",
                         "fetch_basic_data": "Get basic vehicle information (API)",
                         "fetch_telematic": "Get telematics data (API)",
                     }
-                )
+                ),
+                vol.Optional(
+                    "mqtt_keepalive",
+                    default=keepalive_default,
+                ): str,
+                vol.Optional(
+                    "diagnostic_log_interval",
+                    default=diagnostic_default,
+                ): str,
+                vol.Optional(
+                    "debug_log",
+                    default=debug_choice,
+                ): vol.In({"default": "Use default", "true": "Enabled", "false": "Disabled"}),
             }
         )
+
+    def _parse_overrides(self, user_input: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, str]]:
+        overrides: Dict[str, Any] = {}
+        errors: Dict[str, str] = {}
+
+        keepalive_raw = user_input.get("mqtt_keepalive")
+        if keepalive_raw is not None:
+            keepalive_raw = keepalive_raw.strip()
+            if keepalive_raw:
+                try:
+                    value = int(keepalive_raw)
+                    if value <= 0:
+                        raise ValueError
+                except ValueError:
+                    errors["mqtt_keepalive"] = "invalid_int"
+                else:
+                    overrides[OPTION_MQTT_KEEPALIVE] = value
+            else:
+                overrides[OPTION_MQTT_KEEPALIVE] = None
+
+        diagnostic_raw = user_input.get("diagnostic_log_interval")
+        if diagnostic_raw is not None:
+            diagnostic_raw = diagnostic_raw.strip()
+            if diagnostic_raw:
+                try:
+                    value = int(diagnostic_raw)
+                    if value <= 0:
+                        raise ValueError
+                except ValueError:
+                    errors["diagnostic_log_interval"] = "invalid_int"
+                else:
+                    overrides[OPTION_DIAGNOSTIC_INTERVAL] = value
+            else:
+                overrides[OPTION_DIAGNOSTIC_INTERVAL] = None
+
+        debug_choice = user_input.get("debug_log")
+        if debug_choice == "true":
+            overrides[OPTION_DEBUG_LOG] = True
+        elif debug_choice == "false":
+            overrides[OPTION_DEBUG_LOG] = False
+        else:
+            overrides[OPTION_DEBUG_LOG] = None
+
+        return overrides, errors
+
+    def _apply_overrides(self, overrides: Dict[str, Any]) -> bool:
+        options = dict(self._config_entry.options)
+        changed = False
+        for key, value in overrides.items():
+            if value is None:
+                if key in options:
+                    options.pop(key)
+                    changed = True
+            else:
+                if options.get(key) != value:
+                    options[key] = value
+                    changed = True
+        if changed:
+            self.hass.config_entries.async_update_entry(self._config_entry, options=options)
+        return changed
 
     async def _handle_refresh_tokens(self) -> FlowResult:
         try:
