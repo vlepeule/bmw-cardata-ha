@@ -46,6 +46,7 @@ from .const import (
     OPTION_MQTT_KEEPALIVE,
     OPTION_DEBUG_LOG,
     OPTION_DIAGNOSTIC_INTERVAL,
+    DEBUG_LOG,
 )
 from .device_flow import CardataAuthError, refresh_tokens
 from .container import CardataContainerError, CardataContainerManager
