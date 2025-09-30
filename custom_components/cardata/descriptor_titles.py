@@ -160,7 +160,7 @@ DESCRIPTOR_TITLES = {
     "vehicle.drivetrain.electricEngine.charging.profile.settings.biDirectionalCharging.departureTimeRelevant": "Departure Time Relevant",
     "vehicle.drivetrain.electricEngine.charging.modeDeviation": "Deviation Charging Mode",
     "vehicle.drivetrain.electricEngine.charging.acVoltage": "AC Charging Voltage",
-    "vehicle.drivetrain.electricEngine.charging.acAmpere": "AC Charging",
+    "vehicle.drivetrain.electricEngine.charging.acAmpere": "AC Charging Amperage",
     "vehicle.drivetrain.electricEngine.charging.acRestriction.isChosen": "AC Charging Limitation Selection",
     "vehicle.trip.segment.accumulated.drivetrain.transmission.setting.fractionDriveEcoPro": "ECO Pro mode fraction",
     "vehicle.trip.segment.accumulated.drivetrain.transmission.setting.fractionDriveEcoProPlus": "Eco Pro plus fraction",
