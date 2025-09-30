@@ -2,13 +2,13 @@
   "domain": "cardata",
   "name": "BimmerData Streamline",
   "codeowners": [
-    "@jjyks"
+    "@jjyksi"
   ],
   "config_flow": true,
   "options_flow": true,
   "documentation": "https://github.com/JjyKsi/bmw-cardata-ha/",
   "iot_class": "cloud_push",
   "requirements": [],
-  "version": "0.2.2-beta.3",
+  "version": "0.2.2-beta.4",
   "integration_type": "device"
 }
