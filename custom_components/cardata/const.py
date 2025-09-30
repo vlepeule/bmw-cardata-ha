@@ -51,7 +51,11 @@ HV_BATTERY_DESCRIPTORS = [
     "vehicle.drivetrain.electricEngine.charging.level",
     "vehicle.powertrain.electric.battery.stateOfHealth.displayed",
     "vehicle.vehicleIdentification.basicVehicleData",
-    "vehicle.drivetrain.batteryManagement.batterySizeMax"
+    "vehicle.drivetrain.batteryManagement.batterySizeMax",
+    "vehicle.drivetrain.batteryManagement.maxEnergy",
+    "vehicle.powertrain.electric.battery.charging.power",
+    "vehicle.drivetrain.electricEngine.charging.status"
+
 ]
 
 #fetch_vehicle_mapping returns data like this:
