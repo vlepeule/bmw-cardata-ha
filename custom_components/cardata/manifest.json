@@ -6,9 +6,9 @@
   ],
   "config_flow": true,
   "options_flow": true,
-  "documentation": "https://github.com/jjyks/bmw-cardata-homeassistant",
+  "documentation": "https://github.com/JjyKsi/bmw-cardata-ha/",
   "iot_class": "cloud_push",
   "requirements": [],
-  "version": "0.1.50-beta.4",
+  "version": "0.1.50-beta.5",
   "integration_type": "device"
 }
