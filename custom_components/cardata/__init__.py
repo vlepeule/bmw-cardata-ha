@@ -22,6 +22,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.components import persistent_notification
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
     API_BASE_URL,
@@ -181,6 +182,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Missing GCID or ID token")
 
     coordinator = CardataCoordinator(hass=hass, entry_id=entry.entry_id)
+    last_poll_ts = data.get("last_telematic_poll")
+    if isinstance(last_poll_ts, (int, float)) and last_poll_ts > 0:
+        coordinator.last_telematic_api_at = datetime.fromtimestamp(
+            last_poll_ts, timezone.utc
+        )
     stored_metadata = data.get(VEHICLE_METADATA, {})
     if isinstance(stored_metadata, dict):
         device_registry = dr.async_get(hass)
@@ -878,6 +884,9 @@ async def _async_run_bootstrap(hass: HomeAssistant, entry: ConfigEntry) -> None:
             "Bootstrap did not seed new descriptors for entry %s; basic data fetch skipped",
             entry.entry_id,
         )
+    # The initial telematics fetch counts as an API call, but we don't set
+    # last_telematic_poll_time here because the bootstrap should not delay the
+    # first scheduled poll unnecessarily.
 
     await _async_mark_bootstrap_complete(hass, entry)
 
@@ -1190,6 +1199,10 @@ async def _async_perform_telematic_fetch(
                 await runtime.coordinator.async_handle_message(
                     {"vin": vin, "data": telematic_payload}
                 )
+            runtime.coordinator.last_telematic_api_at = datetime.now(timezone.utc)
+            async_dispatcher_send(
+                runtime.coordinator.hass, runtime.coordinator.signal_diagnostics
+            )
     except aiohttp.ClientError as err:
         _LOGGER.error(
             "Cardata fetch_telematic_data: network error for %s: %s",

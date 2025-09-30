@@ -127,6 +127,7 @@ class CardataCoordinator:
     names: Dict[str, str] = field(default_factory=dict)
     device_metadata: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     last_message_at: Optional[datetime] = None
+    last_telematic_api_at: Optional[datetime] = None
     connection_status: str = "connecting"
     last_disconnect_reason: Optional[str] = None
     watchdog_task: Optional[asyncio.Task] = field(default=None, init=False, repr=False)
@@ -153,6 +154,10 @@ class CardataCoordinator:
     @property
     def signal_soc_estimate(self) -> str:
         return f"{DOMAIN}_{self.entry_id}_soc_estimate"
+
+    @property
+    def signal_telematic_api(self) -> str:
+        return f"{DOMAIN}_{self.entry_id}_telematic_api"
 
     async def async_handle_message(self, payload: Dict[str, Any]) -> None:
         vin = payload.get("vin")

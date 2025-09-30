@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -95,6 +95,10 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
             suffix = "last_message"
             self._attr_name = "Last Message Received"
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
+        elif sensor_type == "last_telematic_api":
+            suffix = "last_telematic_api"
+            self._attr_name = "Last Telematics API Call"
+            self._attr_device_class = SensorDeviceClass.TIMESTAMP
         elif sensor_type == "connection_status":
             suffix = "connection_status"
             self._attr_name = "Stream Connection Status"
@@ -113,24 +117,32 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        if self._sensor_type != "connection_status":
-            return {}
-        attrs = dict(self._stream.debug_info)
-        if self._coordinator.last_disconnect_reason:
-            attrs["last_disconnect_reason"] = self._coordinator.last_disconnect_reason
-        if self._quota:
-            attrs["api_quota_used"] = self._quota.used
-            attrs["api_quota_remaining"] = self._quota.remaining
-            if next_reset := self._quota.next_reset_iso:
-                attrs["api_quota_next_reset"] = next_reset
-        return attrs
+        if self._sensor_type == "connection_status":
+            attrs = dict(self._stream.debug_info)
+            if self._coordinator.last_disconnect_reason:
+                attrs["last_disconnect_reason"] = self._coordinator.last_disconnect_reason
+            if self._quota:
+                attrs["api_quota_used"] = self._quota.used
+                attrs["api_quota_remaining"] = self._quota.remaining
+                if next_reset := self._quota.next_reset_iso:
+                    attrs["api_quota_next_reset"] = next_reset
+            return attrs
+        if self._sensor_type == "last_telematic_api":
+            attrs: dict[str, Any] = {}
+            if self._quota:
+                attrs["api_quota_used"] = self._quota.used
+                attrs["api_quota_remaining"] = self._quota.remaining
+                if next_reset := self._quota.next_reset_iso:
+                    attrs["api_quota_next_reset"] = next_reset
+            return attrs
+        return {}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         if self._attr_native_value is None:
             last_state = await self.async_get_last_state()
             if last_state and last_state.state not in ("unknown", "unavailable"):
-                if self._sensor_type == "last_message":
+                if self._sensor_type in {"last_message", "last_telematic_api"}:
                     self._attr_native_value = dt_util.parse_datetime(last_state.state)
                 else:
                     self._attr_native_value = last_state.state
@@ -149,6 +161,10 @@ class CardataDiagnosticsSensor(SensorEntity, RestoreEntity):
     def _handle_update(self) -> None:
         if self._sensor_type == "last_message":
             value = self._coordinator.last_message_at
+            if value is not None:
+                self._attr_native_value = value
+        elif self._sensor_type == "last_telematic_api":
+            value = self._coordinator.last_telematic_api_at
             if value is not None:
                 self._attr_native_value = value
         elif self._sensor_type == "connection_status":
@@ -373,9 +389,11 @@ async def async_setup_entry(
 
     diagnostic_entities: list[CardataDiagnosticsSensor] = []
     stream_manager = runtime.stream
-    for sensor_type in ("connection_status", "last_message"):
+    for sensor_type in ("connection_status", "last_message", "last_telematic_api"):
         if sensor_type == "last_message":
             unique_id = f"{entry.entry_id}_diagnostics_last_message"
+        elif sensor_type == "last_telematic_api":
+            unique_id = f"{entry.entry_id}_diagnostics_last_telematic_api"
         else:
             unique_id = f"{entry.entry_id}_diagnostics_connection_status"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
