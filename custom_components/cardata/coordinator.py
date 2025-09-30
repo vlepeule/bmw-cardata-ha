@@ -37,6 +37,7 @@ class SocTracking:
     rate_per_hour: Optional[float] = None
     estimated_percent: Optional[float] = None
     last_estimate_time: Optional[datetime] = None
+    target_soc_percent: Optional[float] = None
 
     def update_max_energy(self, value: Optional[float]) -> None:
         if value is None:
@@ -75,6 +76,22 @@ class SocTracking:
         self.charging_active = status in {"CHARGINGACTIVE", "CHARGING_IN_PROGRESS"}
         self._recalculate_rate()
 
+    def update_target_soc(
+        self, percent: Optional[float], timestamp: Optional[datetime] = None
+    ) -> None:
+        if percent is None:
+            self.target_soc_percent = None
+            return
+        self.target_soc_percent = percent
+        if (
+            self.estimated_percent is not None
+            and self.last_soc_percent is not None
+            and self.last_soc_percent <= percent
+            and self.estimated_percent > percent
+        ):
+            self.estimated_percent = percent
+            self.last_estimate_time = timestamp or datetime.now(timezone.utc)
+
     def estimate(self, now: datetime) -> Optional[float]:
         if self.estimated_percent is None:
             base = self.last_soc_percent
@@ -97,8 +114,16 @@ class SocTracking:
             self.last_estimate_time = now
             return self.estimated_percent
 
+        previous_estimate = self.estimated_percent
         increment = rate * (delta_seconds / 3600.0)
         self.estimated_percent = (self.estimated_percent or 0.0) + increment
+        if (
+            self.target_soc_percent is not None
+            and rate > 0
+            and previous_estimate is not None
+            and previous_estimate <= self.target_soc_percent <= self.estimated_percent
+        ):
+            self.estimated_percent = self.target_soc_percent
         if self.estimated_percent > 100.0:
             self.estimated_percent = 100.0
         elif self.estimated_percent < 0.0:
@@ -136,6 +161,12 @@ class CardataCoordinator:
     _soc_tracking: Dict[str, SocTracking] = field(default_factory=dict, init=False)
     _soc_rate: Dict[str, float] = field(default_factory=dict, init=False)
     _soc_estimate: Dict[str, float] = field(default_factory=dict, init=False)
+    _testing_soc_tracking: Dict[str, SocTracking] = field(
+        default_factory=dict, init=False
+    )
+    _testing_soc_estimate: Dict[str, float] = field(default_factory=dict, init=False)
+    _avg_aux_power_w: Dict[str, float] = field(default_factory=dict, init=False)
+    _charging_power_w: Dict[str, float] = field(default_factory=dict, init=False)
 
     @property
     def signal_new_sensor(self) -> str:
@@ -161,6 +192,24 @@ class CardataCoordinator:
     def signal_telematic_api(self) -> str:
         return f"{DOMAIN}_{self.entry_id}_telematic_api"
 
+    def _get_testing_tracking(self, vin: str) -> SocTracking:
+        return self._testing_soc_tracking.setdefault(vin, SocTracking())
+
+    def _adjust_power_for_testing(self, vin: str, power_w: float) -> float:
+        aux_power = self._avg_aux_power_w.get(vin)
+        if aux_power is None:
+            return max(power_w, 0.0)
+        return max(power_w - aux_power, 0.0)
+
+    def _update_testing_power(self, vin: str, timestamp: Optional[datetime]) -> None:
+        raw_power = self._charging_power_w.get(vin)
+        if raw_power is None:
+            return
+        testing_tracking = self._get_testing_tracking(vin)
+        testing_tracking.update_power(
+            self._adjust_power_for_testing(vin, raw_power), timestamp
+        )
+
     async def async_handle_message(self, payload: Dict[str, Any]) -> None:
         vin = payload.get("vin")
         data = payload.get("data") or {}
@@ -177,16 +226,25 @@ class CardataCoordinator:
             _LOGGER.debug("Processing message for VIN %s: %s", vin, list(data.keys()))
 
         tracking = self._soc_tracking.setdefault(vin, SocTracking())
+        testing_tracking = self._get_testing_tracking(vin)
         now = datetime.now(timezone.utc)
 
         for descriptor, descriptor_payload in data.items():
             if not isinstance(descriptor_payload, dict):
                 continue
             value = descriptor_payload.get("value")
-            if value is None:
-                continue
             unit = descriptor_payload.get("unit")
             timestamp = descriptor_payload.get("timestamp")
+            if value is None:
+                if descriptor == "vehicle.powertrain.electric.battery.stateOfCharge.target":
+                    parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
+                    tracking.update_target_soc(None, parsed_ts)
+                    testing_tracking.update_target_soc(None, parsed_ts)
+                elif descriptor == "vehicle.vehicle.avgAuxPower":
+                    parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
+                    self._avg_aux_power_w.pop(vin, None)
+                    self._update_testing_power(vin, parsed_ts)
+                continue
             is_new = descriptor not in vehicle_state
             vehicle_state[descriptor] = DescriptorState(value=value, unit=unit, timestamp=timestamp)
             if descriptor == "vehicle.vehicleIdentification.basicVehicleData" and isinstance(value, dict):
@@ -200,22 +258,62 @@ class CardataCoordinator:
             parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
             if descriptor == "vehicle.drivetrain.batteryManagement.header":
                 try:
-                    tracking.update_actual_soc(float(value), parsed_ts)
+                    percent = float(value)
                 except (TypeError, ValueError):
                     pass
+                else:
+                    tracking.update_actual_soc(percent, parsed_ts)
+                    testing_tracking.update_actual_soc(percent, parsed_ts)
             elif descriptor == "vehicle.drivetrain.batteryManagement.maxEnergy":
                 try:
-                    tracking.update_max_energy(float(value))
+                    max_energy = float(value)
                 except (TypeError, ValueError):
                     pass
+                else:
+                    tracking.update_max_energy(max_energy)
+                    testing_tracking.update_max_energy(max_energy)
             elif descriptor == "vehicle.powertrain.electric.battery.charging.power":
                 try:
-                    tracking.update_power(float(value), parsed_ts)
+                    power_w = float(value)
                 except (TypeError, ValueError):
                     pass
+                else:
+                    tracking.update_power(power_w, parsed_ts)
+                    self._charging_power_w[vin] = power_w
+                    testing_tracking.update_power(
+                        self._adjust_power_for_testing(vin, power_w), parsed_ts
+                    )
             elif descriptor == "vehicle.drivetrain.electricEngine.charging.status":
                 if isinstance(value, str):
                     tracking.update_status(value)
+                    testing_tracking.update_status(value)
+            elif descriptor == "vehicle.powertrain.electric.battery.stateOfCharge.target":
+                try:
+                    target = float(value)
+                except (TypeError, ValueError):
+                    tracking.update_target_soc(None, parsed_ts)
+                    testing_tracking.update_target_soc(None, parsed_ts)
+                else:
+                    tracking.update_target_soc(target, parsed_ts)
+                    testing_tracking.update_target_soc(target, parsed_ts)
+            elif descriptor == "vehicle.vehicle.avgAuxPower":
+                aux_w: Optional[float] = None
+                try:
+                    aux_value = float(value)
+                except (TypeError, ValueError):
+                    pass
+                else:
+                    if isinstance(unit, str) and unit.lower() == "w":
+                        aux_w = aux_value
+                    else:
+                        aux_w = aux_value * 1000.0
+                if aux_w is not None:
+                    aux_w = max(aux_w, 0.0)
+                if aux_w is None:
+                    self._avg_aux_power_w.pop(vin, None)
+                else:
+                    self._avg_aux_power_w[vin] = aux_w
+                self._update_testing_power(vin, parsed_ts)
 
             async_dispatcher_send(self.hass, self.signal_update, vin, descriptor)
 
@@ -289,10 +387,16 @@ class CardataCoordinator:
 
     def _apply_soc_estimate(self, vin: str, now: datetime, notify: bool = True) -> bool:
         tracking = self._soc_tracking.get(vin)
+        testing_tracking = self._testing_soc_tracking.get(vin)
         if not tracking:
             removed_estimate = self._soc_estimate.pop(vin, None) is not None
             removed_rate = self._soc_rate.pop(vin, None) is not None
-            changed = removed_estimate or removed_rate
+            testing_removed = self._testing_soc_estimate.pop(vin, None) is not None
+            if vin in self._testing_soc_tracking:
+                self._testing_soc_tracking.pop(vin, None)
+            self._avg_aux_power_w.pop(vin, None)
+            self._charging_power_w.pop(vin, None)
+            changed = removed_estimate or removed_rate or testing_removed
             if notify and changed:
                 async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
             return changed
@@ -321,15 +425,37 @@ class CardataCoordinator:
                 self._soc_estimate[vin] = rounded_percent
                 estimate_changed = True
         updated = rate_changed or estimate_changed
-        if notify and updated:
+
+        testing_changed = False
+        if testing_tracking:
+            testing_percent = testing_tracking.estimate(now)
+            if testing_percent is None:
+                if vin in self._testing_soc_estimate:
+                    self._testing_soc_estimate.pop(vin, None)
+                    testing_changed = True
+            else:
+                rounded_testing = round(testing_percent, 2)
+                if self._testing_soc_estimate.get(vin) != rounded_testing:
+                    self._testing_soc_estimate[vin] = rounded_testing
+                    testing_changed = True
+        else:
+            if vin in self._testing_soc_estimate:
+                self._testing_soc_estimate.pop(vin, None)
+                testing_changed = True
+
+        final_updated = updated or testing_changed
+        if notify and final_updated:
             async_dispatcher_send(self.hass, self.signal_soc_estimate, vin)
-        return updated
+        return final_updated
 
     def get_soc_rate(self, vin: str) -> Optional[float]:
         return self._soc_rate.get(vin)
 
     def get_soc_estimate(self, vin: str) -> Optional[float]:
         return self._soc_estimate.get(vin)
+
+    def get_testing_soc_estimate(self, vin: str) -> Optional[float]:
+        return self._testing_soc_estimate.get(vin)
 
     def restore_descriptor_state(
         self,
@@ -339,7 +465,16 @@ class CardataCoordinator:
         unit: Optional[str],
         timestamp: Optional[str],
     ) -> None:
+        parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
         if value is None:
+            if descriptor == "vehicle.powertrain.electric.battery.stateOfCharge.target":
+                tracking = self._soc_tracking.setdefault(vin, SocTracking())
+                testing_tracking = self._get_testing_tracking(vin)
+                tracking.update_target_soc(None, parsed_ts)
+                testing_tracking.update_target_soc(None, parsed_ts)
+            elif descriptor == "vehicle.vehicle.avgAuxPower":
+                self._avg_aux_power_w.pop(vin, None)
+                self._update_testing_power(vin, parsed_ts)
             return
         vehicle_state = self.data.setdefault(vin, {})
         stored_value: Any = value
@@ -357,32 +492,72 @@ class CardataCoordinator:
             unit=unit,
             timestamp=timestamp,
         )
-        parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
         tracking = self._soc_tracking.setdefault(vin, SocTracking())
+        testing_tracking = self._get_testing_tracking(vin)
 
         updated = False
         if descriptor == "vehicle.drivetrain.batteryManagement.header":
             try:
-                tracking.update_actual_soc(float(value), parsed_ts)
-                updated = True
+                percent = float(value)
             except (TypeError, ValueError):
                 return
+            tracking.update_actual_soc(percent, parsed_ts)
+            testing_tracking.update_actual_soc(percent, parsed_ts)
+            updated = True
         elif descriptor == "vehicle.drivetrain.batteryManagement.maxEnergy":
             try:
-                tracking.update_max_energy(float(value))
-                updated = True
+                max_energy = float(value)
             except (TypeError, ValueError):
                 return
+            tracking.update_max_energy(max_energy)
+            testing_tracking.update_max_energy(max_energy)
+            updated = True
         elif descriptor == "vehicle.powertrain.electric.battery.charging.power":
             try:
-                tracking.update_power(float(value), parsed_ts)
-                updated = True
+                power_w = float(value)
             except (TypeError, ValueError):
                 return
+            tracking.update_power(power_w, parsed_ts)
+            self._charging_power_w[vin] = power_w
+            testing_tracking.update_power(
+                self._adjust_power_for_testing(vin, power_w), parsed_ts
+            )
+            updated = True
         elif descriptor == "vehicle.drivetrain.electricEngine.charging.status":
             if isinstance(value, str):
                 tracking.update_status(value)
+                testing_tracking.update_status(value)
                 updated = True
+        elif descriptor == "vehicle.powertrain.electric.battery.stateOfCharge.target":
+            try:
+                target = float(value)
+            except (TypeError, ValueError):
+                tracking.update_target_soc(None, parsed_ts)
+                testing_tracking.update_target_soc(None, parsed_ts)
+                updated = True
+            else:
+                tracking.update_target_soc(target, parsed_ts)
+                testing_tracking.update_target_soc(target, parsed_ts)
+                updated = True
+        elif descriptor == "vehicle.vehicle.avgAuxPower":
+            aux_w: Optional[float] = None
+            try:
+                aux_value = float(value)
+            except (TypeError, ValueError):
+                pass
+            else:
+                if isinstance(unit, str) and unit.lower() == "w":
+                    aux_w = aux_value
+                else:
+                    aux_w = aux_value * 1000.0
+            if aux_w is not None:
+                aux_w = max(aux_w, 0.0)
+            if aux_w is None:
+                self._avg_aux_power_w.pop(vin, None)
+            else:
+                self._avg_aux_power_w[vin] = aux_w
+            self._update_testing_power(vin, parsed_ts)
+            updated = True
 
         if not updated:
             return
@@ -394,6 +569,13 @@ class CardataCoordinator:
             self._soc_rate[vin] = round(tracking.rate_per_hour, 3)
         else:
             self._soc_rate.pop(vin, None)
+
+        if testing_tracking.estimated_percent is not None:
+            self._testing_soc_estimate[vin] = round(
+                testing_tracking.estimated_percent, 2
+            )
+        elif vin in self._testing_soc_estimate:
+            self._testing_soc_estimate.pop(vin, None)
 
     def restore_soc_cache(
         self,
@@ -421,6 +603,21 @@ class CardataCoordinator:
                 tracking.last_power_time = reference_time
             else:
                 self._soc_rate.pop(vin, None)
+
+    def restore_testing_soc_cache(
+        self,
+        vin: str,
+        *,
+        estimate: Optional[float] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> None:
+        tracking = self._get_testing_tracking(vin)
+        reference_time = timestamp or datetime.now(timezone.utc)
+        if estimate is None:
+            return
+        tracking.estimated_percent = estimate
+        tracking.last_estimate_time = reference_time
+        self._testing_soc_estimate[vin] = round(estimate, 2)
 
     @staticmethod
     def _build_device_metadata(vin: str, payload: Dict[str, Any]) -> Dict[str, Any]:
