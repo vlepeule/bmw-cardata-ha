@@ -21,7 +21,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
 from . import async_manual_refresh_tokens
-from .const import DEFAULT_SCOPE, DOMAIN
+from .const import DEFAULT_SCOPE, DOMAIN, VEHICLE_METADATA
 from .device_flow import CardataAuthError, poll_for_tokens, request_device_code
 
 DATA_SCHEMA = vol.Schema({vol.Required("client_id"): str})
@@ -193,21 +193,151 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         if user_input is not None:
-            try:
-                await async_manual_refresh_tokens(self.hass, self._config_entry)
-            except CardataAuthError as err:
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=vol.Schema({}),
-                    errors={"base": "refresh_failed"},
-                    description_placeholders={"error": str(err)},
-                )
+            action = user_input.get("action")
+            if action == "refresh_tokens":
+                return await self._handle_refresh_tokens()
+            if action == "reauth":
+                return await self._handle_reauth()
+            if action == "fetch_mappings":
+                return await self._handle_fetch_mappings()
+            if action == "fetch_basic_data":
+                return await self._handle_fetch_basic_data()
+            if action == "fetch_telematic":
+                return await self._handle_fetch_telematic()
+
             return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema({}),
+            data_schema=self._build_schema(),
         )
+
+    def _build_schema(self) -> vol.Schema:
+        return vol.Schema(
+            {
+                vol.Required(
+                    "action",
+                    default="refresh_tokens",
+                ): vol.In(
+                    {
+                        "refresh_tokens": "Refresh tokens",
+                        "reauth": "Start device authorization again",
+                        "fetch_mappings": "Initiate vehicles (API)",
+                        "fetch_basic_data": "Get basic vehicle information (API)",
+                        "fetch_telematic": "Get telematics data (API)",
+                    }
+                )
+            }
+        )
+
+    async def _handle_refresh_tokens(self) -> FlowResult:
+        try:
+            await async_manual_refresh_tokens(self.hass, self._config_entry)
+        except CardataAuthError as err:
+            return self.async_show_form(
+                step_id="init",
+                data_schema=self._build_schema(),
+                errors={"base": "refresh_failed"},
+                description_placeholders={"error": str(err)},
+            )
+        return self.async_create_entry(title="", data={})
+
+    async def _handle_reauth(self) -> FlowResult:
+        entry = self._config_entry
+        if entry is None:
+            return self.async_abort(reason="unknown")
+
+        cleared = dict(entry.data)
+        for key in (
+            "access_token",
+            "refresh_token",
+            "id_token",
+            "expires_in",
+            "scope",
+            "gcid",
+            "token_type",
+            "received_at",
+        ):
+            cleared.pop(key, None)
+
+        self.hass.config_entries.async_update_entry(entry, data=cleared)
+
+        await self.hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_REAUTH},
+            data={"client_id": entry.data.get("client_id"), "entry_id": entry.entry_id},
+        )
+        await self.hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": config_entries.SOURCE_REAUTH},
+            data={"client_id": entry.data.get("client_id"), "entry_id": entry.entry_id},
+        )
+        return self.async_abort(reason="reauth_started")
+
+    async def _handle_fetch_mappings(self) -> FlowResult:
+        runtime = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+        if runtime is None:
+            return self.async_show_form(
+                step_id="init",
+                data_schema=self._build_schema(),
+                errors={"base": "runtime_missing"},
+            )
+        await self.hass.services.async_call(
+            DOMAIN,
+            "fetch_vehicle_mappings",
+            {"entry_id": self._config_entry.entry_id},
+            blocking=True,
+        )
+        return self.async_create_entry(title="", data={})
+
+    async def _handle_fetch_telematic(self) -> FlowResult:
+        runtime = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+        if runtime is None:
+            return self.async_show_form(
+                step_id="init",
+                data_schema=self._build_schema(),
+                errors={"base": "runtime_missing"},
+            )
+        await self.hass.services.async_call(
+            DOMAIN,
+            "fetch_telematic_data",
+            {"entry_id": self._config_entry.entry_id},
+            blocking=True,
+        )
+        return self.async_create_entry(title="", data={})
+
+    async def _handle_fetch_basic_data(self) -> FlowResult:
+        runtime = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+        if runtime is None:
+            return self.async_show_form(
+                step_id="init",
+                data_schema=self._build_schema(),
+                errors={"base": "runtime_missing"},
+            )
+
+        vins = set()
+        vins.update(runtime.coordinator.data.keys())
+        metadata = self._config_entry.data.get(VEHICLE_METADATA)
+        if isinstance(metadata, dict):
+            vins.update(metadata.keys())
+        if (entry_vin := self._config_entry.data.get("vin")):
+            vins.add(entry_vin)
+        if not vins:
+            return self.async_show_form(
+                step_id="init",
+                data_schema=self._build_schema(),
+                errors={"base": "no_vins"},
+            )
+
+        for vin in sorted(v for v in vins if isinstance(v, str)):
+            await self.hass.services.async_call(
+                DOMAIN,
+                "fetch_basic_data",
+                {"entry_id": self._config_entry.entry_id, "vin": vin},
+                blocking=True,
+            )
+
+        return self.async_create_entry(title="", data={})
 
 
 async def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
