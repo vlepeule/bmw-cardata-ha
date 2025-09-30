@@ -422,7 +422,7 @@ async def async_setup_entry(
         if unique_id.startswith(f"{entry.entry_id}_diagnostics_"):
             continue
         vin, descriptor = unique_id.split("_", 1)
-        if descriptor in {"soc_estimate", "soc_rate"}:
+        if descriptor in {"soc_estimate", "soc_rate", "soc_estimate_testing"}:
             ensure_soc_tracking_entities(vin)
             continue
         ensure_entity(vin, descriptor, assume_sensor=True)
