@@ -57,8 +57,6 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
 4.1. Note, BMW portal seems to have some problems with scope selection. If you see an error on the top of the page, reload it, select one scope and wait for +30 seconds, then select the another one and wait agin.
 5. Scroll to the **Data Selection** section (`Datenauswahl ändern`) and load all descriptors (keep clicking “Load more”).
 6. Check every descriptor you want to stream. To automate this, open the browser console and run:
-   - If you want the "Extrapolated SOC" helper sensor to work, make sure your telematics container includes the descriptors `vehicle.drivetrain.batteryManagement.header`, `vehicle.drivetrain.batteryManagement.maxEnergy`, `vehicle.powertrain.electric.battery.charging.power`, and `vehicle.drivetrain.electricEngine.charging.status`. Those fields let the integration reset the extrapolated state of charge and calculate the charging slope between stream updates.
-
 ```js
 (() => {
   const labels = document.querySelectorAll('.css-k008qs label.chakra-checkbox');
@@ -85,6 +83,7 @@ The CarData web portal isn’t available everywhere (e.g., it’s disabled in Fi
   console.log(`Checked ${changed} of ${labels.length} checkboxes.`);
 })();
 ```
+   - If you want the "Extrapolated SOC" helper sensor to work, make sure your telematics container includes the descriptors `vehicle.drivetrain.batteryManagement.header`, `vehicle.drivetrain.batteryManagement.maxEnergy`, `vehicle.powertrain.electric.battery.charging.power`, and `vehicle.drivetrain.electricEngine.charging.status`. Those fields let the integration reset the extrapolated state of charge and calculate the charging slope between stream updates.
 
 7. Save the selection.
 8. Repeat for all the cars you want to support
