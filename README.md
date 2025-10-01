@@ -10,6 +10,9 @@ I'm developing this on my free time with personal use cases as highest priority.
 
 The Beta branch is used as a day to day development branch and can contain completely broken stuff, please don't use it or report bugs from it unless specifically asked for. The main branch is updated when I feel that it works well enough and has something worth to publish.
 
+## Issues / Discussion
+Please try to post only issues relevant to the integration itself on the [Issues](https://github.com/JjyKsi/bmw-cardata-ha/issues) and keep all the outside discussion (problems with registration on BMWs side, asking for guidance, etc) in the discussions: [Discussions](https://github.com/JjyKsi/bmw-cardata-ha/discussions) It's not an end of the world if it's in the wrong place, but moving them around makes extra work for me which is away from the development. 
+
 
 ## Release Notes: 
 #### 30.9.2025
