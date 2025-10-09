@@ -88,20 +88,30 @@ class CardataDeviceTracker(CardataEntity, TrackerEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return entity specific state attributes."""
         attrs = {}
-        # Add any location-related attributes from the coordinator
-        # Check for altitude if available
-        alt_state = self._coordinator.get_state(self._vin, "vehicle.cabin.infotainment.navigation.currentLocation.altitude")
-        if alt_state and alt_state.value is not None:
-            try:
-                attrs["altitude"] = float(alt_state.value)
-            except (ValueError, TypeError):
-                pass
-        heading_state = self._coordinator.get_state(self._vin, "vehicle.cabin.infotainment.navigation.currentLocation.heading")
-        if heading_state and heading_state.value is not None:
-            try:
-                attrs["heading"] = float(heading_state.value)
-            except (ValueError, TypeError):
-                pass
+        # Heading and altitude removed - uncomment to re-enable
+        # alt_state = self._coordinator.get_state(self._vin, "vehicle.cabin.infotainment.navigation.currentLocation.altitude")
+        # if alt_state and alt_state.value is not None:
+        #     try:
+        #         attrs["altitude"] = float(alt_state.value)
+        #     except (ValueError, TypeError):
+        #         pass
+        # heading_state = self._coordinator.get_state(self._vin, "vehicle.cabin.infotainment.navigation.currentLocation.heading")
+        # if heading_state and heading_state.value is not None:
+        #     try:
+        #         attrs["heading"] = float(heading_state.value)
+        #     except (ValueError, TypeError):
+        #         pass
+        
+        # Vehicle metadata removed - uncomment to re-enable
+        # metadata = self._coordinator.device_metadata.get(self._vin)
+        # if metadata:
+        #     extra = metadata.get("extra_attributes")
+        #     if extra:
+        #         attrs["vehicle_basic_data"] = dict(extra)
+        #     raw = metadata.get("raw_data")
+        #     if raw:
+        #         attrs["vehicle_basic_data_raw"] = dict(raw)
+        
         return attrs
 
     @property
