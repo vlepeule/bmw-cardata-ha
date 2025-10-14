@@ -21,6 +21,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult, FlowResultType
 
 from . import async_manual_refresh_tokens
+from .container import CardataContainerError
 from .const import (
     DEFAULT_SCOPE,
     DOMAIN,
@@ -228,6 +229,7 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
                 "action_fetch_mappings": "Initiate vehicles (API)",
                 "action_fetch_basic": "Get basic vehicle information (API)",
                 "action_fetch_telematic": "Get telematics data (API)",
+                "action_reset_container": "Reset telemetry container",
             },
         )
 
@@ -399,6 +401,77 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
             {"entry_id": self._config_entry.entry_id},
             blocking=True,
         )
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_action_reset_container(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        description = (
+            "Delete existing BMW CarData telemetry containers created by the integration "
+            "and recreate a fresh one?"
+        )
+        runtime = self._get_runtime()
+        if runtime is None:
+            return self._show_confirm(
+                step_id="action_reset_container",
+                errors={"base": "runtime_missing"},
+            )
+        if user_input is None:
+            return self._show_confirm(step_id="action_reset_container")
+        if not user_input.get("confirm"):
+            return self._show_confirm(
+                step_id="action_reset_container",
+                errors={"confirm": "confirm"},
+            )
+
+        entry = self.hass.config_entries.async_get_entry(self._config_entry.entry_id)
+        if entry is None:
+            return self._show_confirm(
+                step_id="action_reset_container",
+                errors={"base": "runtime_missing"},
+            )
+
+        access_token = entry.data.get("access_token")
+        if not access_token:
+            try:
+                await async_manual_refresh_tokens(self.hass, entry)
+            except CardataAuthError as err:
+                return self._show_confirm(
+                    step_id="action_reset_container",
+                    errors={"base": "refresh_failed"},
+                    placeholders={"error": str(err)},
+                )
+            entry = self.hass.config_entries.async_get_entry(entry.entry_id)
+            if entry is None:
+                return self._show_confirm(
+                    step_id="action_reset_container",
+                    errors={"base": "runtime_missing"},
+                )
+            access_token = entry.data.get("access_token")
+            if not access_token:
+                return self._show_confirm(
+                    step_id="action_reset_container",
+                    errors={"base": "missing_token"},
+                )
+
+        try:
+            new_id = await runtime.container_manager.async_reset_hv_container(access_token)
+        except CardataContainerError as err:
+            return self._show_confirm(
+                step_id="action_reset_container",
+                errors={"base": "reset_failed"},
+                placeholders={"error": str(err)},
+            )
+
+        updated = dict(entry.data)
+        if new_id:
+            updated["hv_container_id"] = new_id
+            updated["hv_descriptor_signature"] = runtime.container_manager.descriptor_signature
+        else:
+            updated.pop("hv_container_id", None)
+            updated.pop("hv_descriptor_signature", None)
+        self.hass.config_entries.async_update_entry(entry, data=updated)
+
         return self.async_create_entry(title="", data={})
 
     async def _handle_reauth(self) -> FlowResult:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import hashlib
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import aiohttp
 
@@ -98,6 +98,56 @@ class CardataContainerManager:
             _LOGGER.info("[%s] Created HV battery container %s", self._entry_id, created_id)
             return self._container_id
 
+    async def async_reset_hv_container(self, access_token: Optional[str]) -> Optional[str]:
+        """Delete existing HV telemetry containers and create a fresh one."""
+
+        if not access_token:
+            if debug_enabled():
+                _LOGGER.debug(
+                    "[%s] Skipping container reset because access token is missing",
+                    self._entry_id,
+                )
+            return self._container_id
+
+        async with self._lock:
+            containers = await self._list_containers(access_token)
+            deleted_ids: List[str] = []
+            for container in containers:
+                container_id = container.get("containerId")
+                if not isinstance(container_id, str):
+                    continue
+                if not self._matches_hv_container(container):
+                    continue
+                try:
+                    await self._delete_container(access_token, container_id)
+                except CardataContainerError as err:
+                    _LOGGER.warning(
+                        "[%s] Failed to delete container %s: %s",
+                        self._entry_id,
+                        container_id,
+                        err,
+                    )
+                    continue
+                deleted_ids.append(container_id)
+
+            if deleted_ids and debug_enabled():
+                _LOGGER.debug(
+                    "[%s] Deleted %s HV container(s): %s",
+                    self._entry_id,
+                    len(deleted_ids),
+                    ", ".join(deleted_ids),
+                )
+
+            self._container_id = None
+            new_id = await self._create_container(access_token)
+            self._container_id = new_id
+            _LOGGER.info(
+                "[%s] Reset HV telemetry container; new container id %s",
+                self._entry_id,
+                new_id,
+            )
+            return new_id
+
     async def _create_container(self, access_token: str) -> str:
         payload = {
             "name": HV_BATTERY_CONTAINER_NAME,
@@ -113,6 +163,57 @@ class CardataContainerManager:
                 "Container creation response missing containerId"
             )
         return container_id
+
+    async def _list_containers(self, access_token: str) -> List[Dict[str, Any]]:
+        response = await self._request("GET", "/customers/containers", access_token)
+        if isinstance(response, list):
+            containers = [item for item in response if isinstance(item, dict)]
+        elif isinstance(response, dict):
+            possible = response.get("containers")
+            if isinstance(possible, list):
+                containers = [item for item in possible if isinstance(item, dict)]
+            else:
+                containers = []
+        else:
+            containers = []
+        return containers
+
+    def _matches_hv_container(self, container: Dict[str, Any]) -> bool:
+        if not isinstance(container, dict):
+            return False
+        purpose = container.get("purpose")
+        name = container.get("name")
+        descriptors = container.get("technicalDescriptors")
+        signature = None
+        if isinstance(descriptors, list):
+            signature = self.compute_signature(
+                [item for item in descriptors if isinstance(item, str)]
+            )
+        return any(
+            [
+                isinstance(purpose, str) and purpose == HV_BATTERY_CONTAINER_PURPOSE,
+                isinstance(name, str) and name == HV_BATTERY_CONTAINER_NAME,
+                signature == self._descriptor_signature,
+            ]
+        )
+
+    async def _delete_container(self, access_token: str, container_id: str) -> None:
+        try:
+            await self._request(
+                "DELETE",
+                f"/customers/containers/{container_id}",
+                access_token,
+            )
+        except CardataContainerError as err:
+            if err.status == 404:
+                if debug_enabled():
+                    _LOGGER.debug(
+                        "[%s] Container %s already deleted",
+                        self._entry_id,
+                        container_id,
+                    )
+                return
+            raise
 
     async def _request(
         self,
