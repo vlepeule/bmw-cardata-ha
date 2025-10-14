@@ -57,7 +57,7 @@ from .debug import set_debug_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = [
+PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.DEVICE_TRACKER
