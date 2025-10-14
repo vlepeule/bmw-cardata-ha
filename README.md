@@ -15,6 +15,13 @@ Please try to post only issues relevant to the integration itself on the [Issues
 
 
 ## Release Notes: 
+#### 14.10.2025
+- Added device tracker entities per VIN, including dynamic creation when navigation coordinates appear and richer vehicle metadata exposure.
+- Improved reauthorization flow: configuration now asks for (and remembers) the client ID, surfaces BMW errors without crashing, and avoids transient “Missing GCID or ID token” retries.
+- Distance-based sensors declare `device_class: distance`, so Home Assistant honours your preferred km/mi units.
+- Mileage/odometer data now uses `state_class: total_increasing`, unlocking long-term statistics and utility meters.
+- Cleaned stray hidden characters in `descriptor_titles.py`, fixing duplicate keys and improving sensor title mapping.
+
 #### 30.9.2025
 ### CarData API implemented
 In addition to the stream, we now also poll the API every 40 minutes. There is still some space to make this higher resolution and I will also plan to make it so, that we wont poll at the same time as stream is online to save some quota for later.

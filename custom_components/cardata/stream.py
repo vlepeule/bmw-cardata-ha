@@ -360,6 +360,14 @@ class CardataStreamManager:
         if not reconnect_required:
             if self._awaiting_new_credentials:
                 self._awaiting_new_credentials = False
+                if self._client is None:
+                    try:
+                        await self.async_start()
+                    except Exception as err:
+                        _LOGGER.error(
+                            "BMW MQTT reconnect failed after credential refresh: %s",
+                            err,
+                        )
             return
 
         if self._client:

@@ -15,6 +15,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, DIAGNOSTIC_LOG_INTERVAL
 from .debug import debug_enabled
+from .units import normalize_unit
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -320,7 +321,7 @@ class CardataCoordinator:
             if not isinstance(descriptor_payload, dict):
                 continue
             value = descriptor_payload.get("value")
-            unit = descriptor_payload.get("unit")
+            unit = normalize_unit(descriptor_payload.get("unit"))
             timestamp = descriptor_payload.get("timestamp")
             parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
             if value is None:
@@ -574,6 +575,7 @@ class CardataCoordinator:
         timestamp: Optional[str],
     ) -> None:
         parsed_ts = dt_util.parse_datetime(timestamp) if timestamp else None
+        unit = normalize_unit(unit)
         if value is None:
             if descriptor == "vehicle.powertrain.electric.battery.stateOfCharge.target":
                 tracking = self._soc_tracking.setdefault(vin, SocTracking())
