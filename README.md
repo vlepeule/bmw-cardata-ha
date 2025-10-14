@@ -21,6 +21,8 @@ Please try to post only issues relevant to the integration itself on the [Issues
 - Distance-based sensors declare `device_class: distance`, so Home Assistant honours your preferred km/mi units.
 - Mileage/odometer data now uses `state_class: total_increasing`, unlocking long-term statistics and utility meters.
 - Cleaned stray hidden characters in `descriptor_titles.py`, fixing duplicate keys and improving sensor title mapping.
+- Normalizes BMW-reported unit strings (for example, mapping `"percent"` to `%`) so entities display consistent units across stream and API payloads.
+- Ensures the MQTT stream restarts automatically after a token refresh even when BMW issues the same `id_token`, preventing long-lived unauthorized states after connectivity hiccups.
 
 #### 30.9.2025
 ### CarData API implemented
