@@ -17,6 +17,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
+from homeassistant.const import UnitOfLength
 
 from .const import DOMAIN
 from .coordinator import CardataCoordinator
@@ -40,6 +41,9 @@ class CardataSensor(CardataEntity, SensorEntity):
                 unit = last_state.attributes.get("unit_of_measurement")
                 if unit is not None:
                     self._attr_native_unit_of_measurement = unit
+                    # If unit is a length/distance type, enable conversion
+                    if unit in {u.value for u in UnitOfLength}:
+                        self._attr_device_class = SensorDeviceClass.DISTANCE # Enables km/mi, m/ft, etc., conversion
                 timestamp = last_state.attributes.get("timestamp")
                 if not timestamp and last_state.last_changed:
                     timestamp = last_state.last_changed.isoformat()
