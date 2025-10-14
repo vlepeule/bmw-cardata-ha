@@ -24,6 +24,7 @@ Please try to post only issues relevant to the integration itself on the [Issues
 - Normalizes BMW-reported unit strings (for example, mapping `"percent"` to `%`) so entities display consistent units across stream and API payloads.
 - Ensures the MQTT stream restarts automatically after a token refresh even when BMW issues the same `id_token`, preventing long-lived unauthorized states after connectivity hiccups.
 - Added an options-flow tool to purge legacy CarData containers and recreate a single fresh telemetry container when BMW reports too many collections.
+- Restored compatibility with Home Assistant 2025.10+ device tracker changes by adapting to the new `SourceType` enum.
 
 #### 30.9.2025
 ### CarData API implemented
