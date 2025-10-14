@@ -11,7 +11,13 @@
       }
     },
     "error": {
-      "authorization_failed": "Authorization is not complete yet (error: {error}). Please approve the device and try again."
+      "authorization_failed": "Authorization is not complete yet (error: {error}). Please approve the device and try again.",
+      "device_code_failed": "BMW rejected the device authorization request ({error}). Check that the client ID is valid and try again."
+    },
+    "abort": {
+      "reauth_device_code_failed": "BMW rejected the device authorization request ({error}). Update the client ID under Configure > Start device authorization again, or remove and re-add the integration.",
+      "reauth_missing_client_id": "Client ID is missing for this integration entry. Remove and re-add the integration to authorize again.",
+      "reauth_failed": "Reauthorization could not be started. Try again from the integration options."
     }
   },
   "options": {
@@ -25,10 +31,14 @@
       "refresh_failed": "Token refresh failed: {error}",
       "runtime_missing": "Integration runtime is not ready. Try again after setup completes.",
       "no_vins": "No VINs are known yet. Wait for the stream to discover a vehicle or trigger it once manually.",
-      "invalid_int": "Enter a positive integer"
+      "invalid_int": "Enter a positive integer",
+      "invalid_client_id": "Enter the BMW CarData client ID."
     },
     "abort": {
-      "reauth_started": "Authorization restarted. Complete the new login flow from the notification."
+      "reauth_started": "Authorization restarted. Complete the new login flow from the notification.",
+      "reauth_device_code_failed": "BMW rejected the device authorization request ({error}). Update the client ID in the integration options and try again.",
+      "reauth_missing_client_id": "Client ID is missing for this integration entry. Remove and re-add the integration to authorize again.",
+      "reauth_failed": "Reauthorization could not be started. Try again from the integration options."
     }
   }
 }

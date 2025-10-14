@@ -18,7 +18,7 @@ import logging
 from homeassistant import config_entries
 from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import FlowResult, FlowResultType
 
 from . import async_manual_refresh_tokens
 from .const import (
@@ -152,13 +152,17 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
 
         if self._reauth_entry:
-            self.hass.config_entries.async_update_entry(self._reauth_entry, data=entry_data)
+            merged = dict(self._reauth_entry.data)
+            merged.update(entry_data)
+            merged.pop("reauth_pending", None)
+            self.hass.config_entries.async_update_entry(self._reauth_entry, data=merged)
             runtime = self.hass.data.get(DOMAIN, {}).get(self._reauth_entry.entry_id)
             if runtime:
                 runtime.reauth_in_progress = False
                 runtime.reauth_flow_id = None
                 runtime.last_reauth_attempt = 0.0
                 runtime.last_refresh_attempt = 0.0
+                runtime.reauth_pending = False
                 new_token = entry_data.get("id_token")
                 new_gcid = entry_data.get("gcid")
                 if new_token or new_gcid:
@@ -180,7 +184,26 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if entry_id:
             self._reauth_entry = self.hass.config_entries.async_get_entry(entry_id)
         self._client_id = entry_data.get("client_id")
-        await self._request_device_code()
+        if not self._client_id:
+            LOGGER.error("Reauth requested but client_id missing for entry %s", entry_id)
+            return self.async_abort(reason="reauth_missing_client_id")
+        try:
+            await self._request_device_code()
+        except CardataAuthError as err:
+            LOGGER.error(
+                "Unable to request BMW device authorization code for entry %s: %s",
+                entry_id,
+                err,
+            )
+            if self._reauth_entry:
+                runtime = self.hass.data.get(DOMAIN, {}).get(self._reauth_entry.entry_id)
+                if runtime:
+                    runtime.reauth_in_progress = False
+                    runtime.reauth_flow_id = None
+            return self.async_abort(
+                reason="reauth_device_code_failed",
+                description_placeholders={"error": str(err)},
+            )
         return await self.async_step_authorize()
 
     @staticmethod
@@ -194,6 +217,7 @@ LOGGER = logging.getLogger(__name__)
 class CardataOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._config_entry = config_entry
+        self._reauth_client_id: Optional[str] = None
 
     async def async_step_init(self, user_input: Optional[Dict[str, Any]] = None) -> FlowResult:
         return self.async_show_menu(
@@ -251,14 +275,36 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_action_reauth(
         self, user_input: Optional[Dict[str, Any]] = None
     ) -> FlowResult:
-        description = "This will clear stored credentials and restart the authorization flow."
+        current_client_id = (
+            self._reauth_client_id
+            or self._config_entry.data.get("client_id")
+            or ""
+        )
+        schema = vol.Schema(
+            {
+                vol.Required("client_id", default=current_client_id): str,
+                vol.Required("confirm", default=False): bool,
+            }
+        )
         if user_input is None:
-            return self._show_confirm(step_id="action_reauth")
+            return self.async_show_form(step_id="action_reauth", data_schema=schema)
+        client_id = user_input.get("client_id", "")
+        if isinstance(client_id, str):
+            client_id = client_id.strip()
+        else:
+            client_id = ""
+        errors: Dict[str, str] = {}
+        if not client_id:
+            errors["client_id"] = "invalid_client_id"
         if not user_input.get("confirm"):
-            return self._show_confirm(
+            errors["confirm"] = "confirm"
+        if errors:
+            return self.async_show_form(
                 step_id="action_reauth",
-                errors={"confirm": "confirm"},
+                data_schema=schema,
+                errors=errors,
             )
+        self._reauth_client_id = client_id
         return await self._handle_reauth()
 
     async def async_step_action_fetch_mappings(
@@ -359,27 +405,29 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         entry = self._config_entry
         if entry is None:
             return self.async_abort(reason="unknown")
+        client_id = (self._reauth_client_id or entry.data.get("client_id") or "").strip()
+        self._reauth_client_id = None
+        if not client_id:
+            return self.async_abort(reason="reauth_missing_client_id")
 
-        cleared = dict(entry.data)
-        for key in (
-            "access_token",
-            "refresh_token",
-            "id_token",
-            "expires_in",
-            "scope",
-            "gcid",
-            "token_type",
-            "received_at",
-        ):
-            cleared.pop(key, None)
+        updated = dict(entry.data)
+        updated["client_id"] = client_id
+        runtime = self._get_runtime()
+        if runtime:
+            runtime.reauth_in_progress = True
+            runtime.reauth_pending = True
+        self.hass.config_entries.async_update_entry(entry, data=updated)
 
-        self.hass.config_entries.async_update_entry(entry, data=cleared)
-
-        await self.hass.config_entries.flow.async_init(
+        flow_result = await self.hass.config_entries.flow.async_init(
             DOMAIN,
             context={"source": config_entries.SOURCE_REAUTH},
-            data={"client_id": entry.data.get("client_id"), "entry_id": entry.entry_id},
+            data={"client_id": client_id, "entry_id": entry.entry_id},
         )
+        if flow_result["type"] == FlowResultType.ABORT:
+            return self.async_abort(
+                reason=flow_result.get("reason", "reauth_failed"),
+                description_placeholders=flow_result.get("description_placeholders"),
+            )
         return self.async_abort(reason="reauth_started")
 
 
