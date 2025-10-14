@@ -152,13 +152,17 @@ class CardataConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
 
         if self._reauth_entry:
-            self.hass.config_entries.async_update_entry(self._reauth_entry, data=entry_data)
+            merged = dict(self._reauth_entry.data)
+            merged.update(entry_data)
+            merged.pop("reauth_pending", None)
+            self.hass.config_entries.async_update_entry(self._reauth_entry, data=merged)
             runtime = self.hass.data.get(DOMAIN, {}).get(self._reauth_entry.entry_id)
             if runtime:
                 runtime.reauth_in_progress = False
                 runtime.reauth_flow_id = None
                 runtime.last_reauth_attempt = 0.0
                 runtime.last_refresh_attempt = 0.0
+                runtime.reauth_pending = False
                 new_token = entry_data.get("id_token")
                 new_gcid = entry_data.get("gcid")
                 if new_token or new_gcid:
@@ -406,21 +410,13 @@ class CardataOptionsFlowHandler(config_entries.OptionsFlow):
         if not client_id:
             return self.async_abort(reason="reauth_missing_client_id")
 
-        cleared = dict(entry.data)
-        cleared["client_id"] = client_id
-        for key in (
-            "access_token",
-            "refresh_token",
-            "id_token",
-            "expires_in",
-            "scope",
-            "gcid",
-            "token_type",
-            "received_at",
-        ):
-            cleared.pop(key, None)
-
-        self.hass.config_entries.async_update_entry(entry, data=cleared)
+        updated = dict(entry.data)
+        updated["client_id"] = client_id
+        runtime = self._get_runtime()
+        if runtime:
+            runtime.reauth_in_progress = True
+            runtime.reauth_pending = True
+        self.hass.config_entries.async_update_entry(entry, data=updated)
 
         flow_result = await self.hass.config_entries.flow.async_init(
             DOMAIN,
