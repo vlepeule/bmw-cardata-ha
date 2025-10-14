@@ -8,7 +8,7 @@ from typing import Any, Dict
 from homeassistant.components.device_tracker import TrackerEntity
 
 try:
-    from homeassistant.components.device_tracker.const import SourceType
+    from homeassistant.components.device_tracker import SourceType
 
     GPS_SOURCE = SourceType.GPS
 except ImportError:  # Home Assistant < 2025.10
