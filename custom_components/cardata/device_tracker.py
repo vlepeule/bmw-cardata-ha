@@ -8,12 +8,15 @@ from typing import Any, Dict
 from homeassistant.components.device_tracker import TrackerEntity
 
 try:
-    from homeassistant.components.device_tracker.const import SourceType
-
-    GPS_SOURCE = SourceType.GPS
+    from homeassistant.components.device_tracker import SourceType
 except ImportError:  # Home Assistant < 2025.10
-    from homeassistant.components.device_tracker.const import SOURCE_TYPE_GPS as GPS_SOURCE  # type: ignore[attr-defined]
     SourceType = str  # type: ignore[assignment]
+    try:
+        from homeassistant.components.device_tracker.const import SOURCE_TYPE_GPS as GPS_SOURCE  # type: ignore[attr-defined]
+    except ImportError:
+        GPS_SOURCE = "gps"
+else:
+    GPS_SOURCE = SourceType.GPS
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
