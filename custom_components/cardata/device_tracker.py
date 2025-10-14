@@ -17,6 +17,7 @@ except ImportError:  # Home Assistant < 2025.10
         GPS_SOURCE = "gps"
 else:
     GPS_SOURCE = SourceType.GPS
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
