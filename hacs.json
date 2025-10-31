@@ -2,5 +2,6 @@
   "name": "BimmerData Streamline",
   "render_readme": true,
   "domains": ["cardata"],
-  "country": "","zip_regex": ""
+  "country": "FR",
+  "zip_regex": ""
 }
